@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Goals{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 text-dark mb-0">
+            <i class="fas fa-bullseye me-2"></i>Goals
+        </h1>
+        <a href="{{ url_for('goals.new_goal') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add New Goal
+        </a>
+    </div>
+
+    {% if goals %}
+    <div class="row g-4">
+        {% for goal in goals %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 {% if goal.status == 'completed' %}opacity-75{% endif %}">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1 me-3">
+                            <h5 class="card-title mb-1" {% if goal.status == 'completed' %}style="text-decoration: line-through;"{% endif %}>{{ goal.title }}</h5>
+                            {% if goal.description %}
+                            <p class="card-text text-muted small mb-0">{{ goal.description }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if goal.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif goal.status == 'abandoned' %}
+                            <span class="badge bg-danger">Abandoned</span>
+                            {% else %}
+                            <span class="badge bg-primary">Active</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Progress</span>
+                            <span class="small fw-bold text-primary">{{ goal.progress }}%</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ goal.progress }}%"></div>
+                        </div>
+                    </div>
+
+                    <ul class="list-unstyled small text-muted mb-3">
+                        {% if goal.category %}
+                        <li class="mb-1"><i class="far fa-tag me-2"></i>{{ goal.category|title }}</li>
+                        {% endif %}
+                        {% if goal.target_date %}
+                        <li class="mb-1"><i class="far fa-calendar me-2"></i>Target: {{ goal.target_date.strftime('%B %d, %Y') }}</li>
+                        {% endif %}
+                        <li><i class="far fa-clock me-2"></i>Created: {{ goal.created_at.strftime('%B %d, %Y') }}</li>
+                    </ul>
+
+                    <div class="mt-auto d-flex gap-2">
+                        {% if goal.status == 'active' %}
+                        <button onclick="updateProgress({{ goal.id }})" class="btn btn-primary btn-sm">
+                            Update Progress
+                        </button>
+                        {% endif %}
+                        <a href="#" class="btn btn-outline-secondary btn-sm">Edit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div class="display-4 mb-3">🎯</div>
+            <h5 class="text-muted mb-2">No goals yet</h5>
+            <p class="text-muted mb-4">Set meaningful goals to track your personal growth and achievements</p>
+            <a href="{{ url_for('goals.new_goal') }}" class="btn btn-primary btn-lg">
+                Set Your First Goal
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+async function updateProgress(goalId) {
+    const progress = prompt('Enter progress percentage (0-100):');
+    if (progress === null || progress === '') return;
+    
+    const progressNum = parseInt(progress);
+    if (isNaN(progressNum) || progressNum < 0 || progressNum > 100) {
+        alert('Please enter a valid percentage between 0 and 100');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/goals/${goalId}/update_progress`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ progress: progressNum })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Error updating progress');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while updating the goal progress.');
+    }
+}
+</script>
+{% endblock %}

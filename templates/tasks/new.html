@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}New Task{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="mb-4">
+        <h1 class="h2 text-dark mb-1"><i class="fas fa-plus me-2"></i>Create New Task</h1>
+        <p class="text-muted">Stay organized by creating a new task to track.</p>
+    </div>
+
+    <form id="taskForm" class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="title" class="form-label">Task Title *</label>
+                <input type="text" id="title" name="title" required class="form-control" placeholder="What needs to be done?">
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea id="description" name="description" rows="3" class="form-control" placeholder="Additional details about the task..."></textarea>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="priority" class="form-label">Priority</label>
+                    <select id="priority" name="priority" class="form-select">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="due_date" class="form-label">Due Date</label>
+                    <input type="datetime-local" id="due_date" name="due_date" class="form-control">
+                </div>
+            </div>
+
+            <div class="d-grid d-md-flex gap-2 justify-content-md-end">
+                <a href="{{ url_for('tasks.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Task</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('taskForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const dueDate = formData.get('due_date');
+    
+    const data = {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        priority: formData.get('priority'),
+        due_date: dueDate || null
+    };
+    
+    try {
+        const response = await fetch('/tasks/new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            window.location.href = '/tasks/';
+        } else {
+            const error = await response.json();
+            alert('Error: ' + error.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while creating the task.');
+    }
+});
+</script>
+{% endblock %}
