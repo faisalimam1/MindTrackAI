@@ -253,9 +253,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support & Contact
 
-- **Email**: support@ai-mental-health.com
-- **Documentation**: https://docs.ai-mental-health.com
-- **Issues**: [GitHub Issues](https://github.com/yourusername/ai-mental-health/issues)
+- **Email**: imamfaisal36@gmail.com
+- **Documentation**: 
+- **Issues**: [GitHub Issues](https://github.com/faisalimam1/ai-mental-health/issues)
 
 ---
 
