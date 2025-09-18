@@ -262,6 +262,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **AI Powered Mental Health and Personalized Recommendation System** - Track Your Mind, Understand Your Soul 🧠✨
 
 Built with ❤️ for better mental health awareness and support.
-
-
-
+© FAISAL IMAM & TEAM
