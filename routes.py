@@ -13,10 +13,16 @@ from werkzeug.utils import secure_filename
 # Composite assessment computation combining PHQ-9, SCID-5-PD, and AV analysis
 def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid_session) -> Dict[str, Any]:
     try:
-        # Extract AV metrics
+        # Extract AV metrics with better error handling
         av_dep = float(av_results.get('depression_score', 0.5))
         av_conf = float(av_results.get('confidence_score', 0.5))
         av_confidence = float(av_results.get('confidence_score', 0.5))
+        
+        # Extract additional AV metrics for better weighting
+        video_dep = float(av_results.get('video_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
+        audio_dep = float(av_results.get('audio_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
+        video_conf = float(av_results.get('video_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
+        audio_conf = float(av_results.get('audio_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
 
         # Extract PHQ-9 score if present
         phq9_score = None
@@ -37,51 +43,142 @@ def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid
         if phq9_score is not None:
             phq9_norm = min(max(phq9_score / 27.0, 0.0), 1.0)
 
-        # Derive SCID risk weight
-        scid_risk_weight = 0.2 if scid_risk else 0.0
+        # Derive SCID risk weight based on positive count
+        scid_risk_weight = 0.0
+        if scid_positive is not None:
+            if scid_positive >= 10:  # High risk
+                scid_risk_weight = 0.3
+            elif scid_positive >= 5:  # Medium risk
+                scid_risk_weight = 0.15
+            elif scid_positive >= 2:  # Low risk
+                scid_risk_weight = 0.05
+        
+        if scid_risk:
+            scid_risk_weight = max(scid_risk_weight, 0.2)  # Ensure minimum risk if flagged
 
-        # Composite depression risk
-        # Weights: AV 0.5, PHQ-9 0.4 (if available), SCID risk 0.1 boost
-        dep_components = [av_dep * 0.5]
+        # Enhanced composite depression calculation
+        # Weighted combination: Video 40%, Audio 30%, PHQ-9 20%, SCID 10%
+        dep_components = []
+        dep_weights = []
+        
+        # Video depression (40% weight)
+        dep_components.append(video_dep)
+        dep_weights.append(0.4)
+        
+        # Audio depression (30% weight)
+        dep_components.append(audio_dep)
+        dep_weights.append(0.3)
+        
+        # PHQ-9 depression (20% weight if available)
         if phq9_norm is not None:
-            dep_components.append(phq9_norm * 0.4)
-        composite_dep = sum(dep_components) + scid_risk_weight
-        composite_dep = min(composite_dep, 1.0)
+            dep_components.append(phq9_norm)
+            dep_weights.append(0.2)
+        else:
+            # If no PHQ-9, redistribute weight to AV
+            dep_weights[0] += 0.1  # Video gets 50%
+            dep_weights[1] += 0.1  # Audio gets 40%
+        
+        # Calculate weighted average
+        if dep_components:
+            composite_dep = sum(comp * weight for comp, weight in zip(dep_components, dep_weights)) / sum(dep_weights)
+        else:
+            composite_dep = av_dep
+        
+        # Add SCID risk boost
+        composite_dep = min(composite_dep + scid_risk_weight, 1.0)
 
-        # Composite confidence
-        composite_conf = min(max(av_conf * 0.7 + (1 - (phq9_norm or av_dep)) * 0.3, 0.0), 1.0)
+        # Enhanced composite confidence calculation
+        conf_components = []
+        conf_weights = []
+        
+        # Video confidence (50% weight)
+        conf_components.append(video_conf)
+        conf_weights.append(0.5)
+        
+        # Audio confidence (50% weight)
+        conf_components.append(audio_conf)
+        conf_weights.append(0.5)
+        
+        # Calculate weighted average
+        if conf_components:
+            composite_conf = sum(comp * weight for comp, weight in zip(conf_components, conf_weights)) / sum(conf_weights)
+        else:
+            composite_conf = av_conf
+        
+        # Adjust confidence based on PHQ-9 if available
+        if phq9_norm is not None:
+            # Lower PHQ-9 scores (less depression) should boost confidence
+            phq9_confidence_boost = (1 - phq9_norm) * 0.2
+            composite_conf = min(composite_conf + phq9_confidence_boost, 1.0)
 
-        # Composite wellbeing
+        # Composite wellbeing calculation
         wellbeing = (1 - composite_dep) * 0.6 + composite_conf * 0.4
-        wellbeing_label = 'good' if wellbeing > 0.7 else ('moderate' if wellbeing > 0.4 else 'concerning')
+        
+        # More nuanced wellbeing categorization
+        if wellbeing > 0.75:
+            wellbeing_label = 'excellent'
+        elif wellbeing > 0.6:
+            wellbeing_label = 'good'
+        elif wellbeing > 0.4:
+            wellbeing_label = 'moderate'
+        elif wellbeing > 0.25:
+            wellbeing_label = 'concerning'
+        else:
+            wellbeing_label = 'critical'
 
-        # Severity label for composite depression
-        if composite_dep < 0.3:
-            dep_label = 'low'
+        # More nuanced depression level categorization
+        if composite_dep < 0.2:
+            dep_label = 'minimal'
+        elif composite_dep < 0.4:
+            dep_label = 'mild'
         elif composite_dep < 0.6:
             dep_label = 'moderate'
+        elif composite_dep < 0.8:
+            dep_label = 'severe'
         else:
-            dep_label = 'high'
+            dep_label = 'critical'
+
+        # More nuanced confidence level categorization
+        if composite_conf > 0.8:
+            conf_label = 'very_high'
+        elif composite_conf > 0.6:
+            conf_label = 'high'
+        elif composite_conf > 0.4:
+            conf_label = 'moderate'
+        elif composite_conf > 0.2:
+            conf_label = 'low'
+        else:
+            conf_label = 'very_low'
 
         return {
             'depression_score': round(composite_dep, 3),
             'depression_level': dep_label,
             'confidence_score': round(composite_conf, 3),
-            'confidence_level': 'high' if composite_conf > 0.6 else ('moderate' if composite_conf > 0.3 else 'low'),
+            'confidence_level': conf_label,
             'overall_wellbeing': wellbeing_label,
             'inputs_used': {
                 'av_analysis': True,
                 'phq9_used': phq9_norm is not None,
-                'scid_risk': bool(scid_risk)
+                'scid_risk': bool(scid_risk),
+                'video_weight': dep_weights[0] if dep_weights else 0.4,
+                'audio_weight': dep_weights[1] if len(dep_weights) > 1 else 0.3
             },
             'phq9': {
                 'score': phq9_score,
-                'severity': phq9_severity
+                'severity': phq9_severity,
+                'normalized_score': phq9_norm
             } if phq9_score is not None else None,
             'scid5pd': {
                 'positives': scid_positive,
-                'risk_flag': scid_risk
-            } if scid_session else None
+                'risk_flag': scid_risk,
+                'risk_weight': scid_risk_weight
+            } if scid_session else None,
+            'component_scores': {
+                'video_depression': round(video_dep, 3),
+                'audio_depression': round(audio_dep, 3),
+                'video_confidence': round(video_conf, 3),
+                'audio_confidence': round(audio_conf, 3)
+            }
         }
     except Exception as e:
         print(f"Composite assessment error: {e}")
@@ -91,7 +188,8 @@ def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid
             'confidence_score': av_results.get('confidence_score', 0.5),
             'confidence_level': av_results.get('confidence_level', 'moderate'),
             'overall_wellbeing': av_results.get('overall_wellbeing', 'moderate'),
-            'inputs_used': {'av_analysis': True, 'phq9_used': False, 'scid_risk': False}
+            'inputs_used': {'av_analysis': True, 'phq9_used': False, 'scid_risk': False},
+            'error': str(e)
         }
 
 # Authentication Blueprint

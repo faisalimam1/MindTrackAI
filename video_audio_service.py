@@ -117,14 +117,28 @@ class VideoAudioAnalysisService:
             Dict containing analysis results
         """
         try:
-            # Analyze video for facial expressions
-            video_analysis = self._analyze_video_emotions(video_data)
+            logger.info(f"Starting video/audio analysis - Video size: {len(video_data)} bytes, Audio size: {len(audio_data)} bytes")
             
-            # Analyze audio for voice patterns and speech
-            audio_analysis = self._analyze_audio_sentiment(audio_data)
+            # Validate input data
+            if not video_data or len(video_data) < 1000:
+                logger.warning("Video data is too small or empty")
+                video_analysis = self._get_fallback_video_analysis()
+            else:
+                # Analyze video for facial expressions
+                video_analysis = self._analyze_video_emotions(video_data)
+                logger.info(f"Video analysis completed - Depression: {video_analysis.get('depression_indicators', {}).get('score', 'N/A')}")
+            
+            if not audio_data or len(audio_data) < 1000:
+                logger.warning("Audio data is too small or empty")
+                audio_analysis = self._get_fallback_audio_analysis()
+            else:
+                # Analyze audio for voice patterns and speech
+                audio_analysis = self._analyze_audio_sentiment(audio_data)
+                logger.info(f"Audio analysis completed - Depression: {audio_analysis.get('depression_indicators', {}).get('score', 'N/A')}")
             
             # Combine results for comprehensive assessment
             combined_assessment = self._combine_assessments(video_analysis, audio_analysis)
+            logger.info(f"Combined assessment - Depression: {combined_assessment.get('depression_score', 'N/A')}, Confidence: {combined_assessment.get('confidence_score', 'N/A')}")
             
             combined = {
                 'timestamp': datetime.now().isoformat(),
@@ -133,7 +147,18 @@ class VideoAudioAnalysisService:
                 'audio_analysis': audio_analysis,
                 'combined_assessment': combined_assessment,
                 'confidence_score': combined_assessment.get('confidence', 0.5),
-                'recommendations': self._generate_recommendations(combined_assessment)
+                'recommendations': self._generate_recommendations(combined_assessment),
+                'processing_info': {
+                    'video_processed': len(video_data) >= 1000,
+                    'audio_processed': len(audio_data) >= 1000,
+                    'libraries_available': {
+                        'opencv': CV2_AVAILABLE,
+                        'librosa': LIBROSA_AVAILABLE,
+                        'moviepy': MOVIEPY_AVAILABLE,
+                        'speech_recognition': SPEECH_RECOGNITION_AVAILABLE,
+                        'textblob': TEXTBLOB_AVAILABLE
+                    }
+                }
             }
             # Flatten key combined metrics for frontend consumption
             combined.update({
@@ -143,10 +168,12 @@ class VideoAudioAnalysisService:
                 'confidence_level': combined_assessment.get('confidence_level', 'moderate'),
                 'overall_wellbeing': combined_assessment.get('overall_wellbeing', 'moderate')
             })
+            
+            logger.info(f"Video/audio analysis completed successfully")
             return combined
             
         except Exception as e:
-            logger.error(f"Error in video/audio analysis: {e}")
+            logger.error(f"Error in video/audio analysis: {e}", exc_info=True)
             return self._get_fallback_assessment('video_audio')
     
     def analyze_audio_only(self, audio_data: bytes) -> Dict:
@@ -421,42 +448,274 @@ class VideoAudioAnalysisService:
                 pass
     
     def _detect_emotions_from_face(self, gray_frame, face_coords: Tuple) -> Dict:
-        """Detect emotions from facial features (simplified implementation)."""
-        # Simplified emotion detection - in production, use proper ML models
-        return {
-            'happiness': random.uniform(0.2, 0.8),
-            'sadness': random.uniform(0.1, 0.6),
-            'anger': random.uniform(0.0, 0.4),
-            'fear': random.uniform(0.0, 0.5),
-            'surprise': random.uniform(0.0, 0.3),
-            'neutral': random.uniform(0.3, 0.7)
-        }
+        """Detect emotions from facial features using basic computer vision."""
+        try:
+            x, y, w, h = face_coords
+            face_roi = gray_frame[y:y+h, x:x+w]
+            
+            if face_roi.size == 0:
+                return {
+                    'happiness': 0.5,
+                    'sadness': 0.5,
+                    'anger': 0.5,
+                    'fear': 0.5,
+                    'surprise': 0.5,
+                    'neutral': 0.5
+                }
+            
+            # Basic emotion detection using facial geometry
+            emotions = {
+                'happiness': 0.5,
+                'sadness': 0.5,
+                'anger': 0.5,
+                'fear': 0.5,
+                'surprise': 0.5,
+                'neutral': 0.5
+            }
+            
+            # Analyze facial features using OpenCV
+            try:
+                # Detect eyes and mouth using Haar cascades
+                eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+                smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
+                
+                # Detect eyes
+                eyes = eye_cascade.detectMultiScale(face_roi, 1.1, 3)
+                # Detect smiles
+                smiles = smile_cascade.detectMultiScale(face_roi, 1.1, 3)
+                
+                # Analyze eye openness (simplified)
+                if len(eyes) >= 2:
+                    # Calculate average eye area
+                    eye_areas = [w*h for (x, y, w, h) in eyes]
+                    avg_eye_area = np.mean(eye_areas) if eye_areas else 0
+                    
+                    # Large eyes might indicate surprise or fear
+                    if avg_eye_area > (w*h) * 0.02:  # Threshold for large eyes
+                        emotions['surprise'] = min(emotions['surprise'] + 0.3, 1.0)
+                        emotions['fear'] = min(emotions['fear'] + 0.2, 1.0)
+                    else:
+                        emotions['neutral'] = min(emotions['neutral'] + 0.2, 1.0)
+                
+                # Analyze smile detection
+                if len(smiles) > 0:
+                    emotions['happiness'] = min(emotions['happiness'] + 0.4, 1.0)
+                    emotions['sadness'] = max(emotions['sadness'] - 0.3, 0.0)
+                else:
+                    # No smile detected, might indicate sadness or neutral
+                    emotions['sadness'] = min(emotions['sadness'] + 0.2, 1.0)
+                    emotions['neutral'] = min(emotions['neutral'] + 0.1, 1.0)
+                
+                # Analyze facial symmetry and brightness
+                # Split face into left and right halves
+                mid_x = w // 2
+                left_half = face_roi[:, :mid_x]
+                right_half = face_roi[:, mid_x:]
+                
+                if left_half.size > 0 and right_half.size > 0:
+                    # Calculate brightness difference
+                    left_brightness = np.mean(left_half)
+                    right_brightness = np.mean(right_half)
+                    brightness_diff = abs(left_brightness - right_brightness)
+                    
+                    # High asymmetry might indicate stress or anger
+                    if brightness_diff > 20:  # Threshold for asymmetry
+                        emotions['anger'] = min(emotions['anger'] + 0.2, 1.0)
+                        emotions['fear'] = min(emotions['fear'] + 0.1, 1.0)
+                    else:
+                        emotions['neutral'] = min(emotions['neutral'] + 0.1, 1.0)
+                
+                # Analyze overall brightness (darker might indicate sadness)
+                overall_brightness = np.mean(face_roi)
+                if overall_brightness < 100:  # Dark threshold
+                    emotions['sadness'] = min(emotions['sadness'] + 0.2, 1.0)
+                elif overall_brightness > 150:  # Bright threshold
+                    emotions['happiness'] = min(emotions['happiness'] + 0.1, 1.0)
+                
+            except Exception as e:
+                logger.warning(f"Error in advanced face analysis: {e}")
+                # Fallback to basic analysis
+                pass
+            
+            # Normalize emotions to ensure they sum to a reasonable range
+            total = sum(emotions.values())
+            if total > 0:
+                emotions = {k: v/total * 3.0 for k, v in emotions.items()}  # Scale to ~3.0 total
+                emotions = {k: min(v, 1.0) for k, v in emotions.items()}  # Cap at 1.0
+            
+            return emotions
+            
+        except Exception as e:
+            logger.error(f"Error in emotion detection: {e}")
+            return {
+                'happiness': 0.5,
+                'sadness': 0.5,
+                'anger': 0.5,
+                'fear': 0.5,
+                'surprise': 0.5,
+                'neutral': 0.5
+            }
     
     def _extract_audio_features(self, audio_data: bytes) -> Dict:
         """Extract audio features for voice pattern analysis."""
         try:
-            # Simplified audio feature extraction
-            return {
-                'pitch_std': random.uniform(0.2, 0.8),
-                'energy_mean': random.uniform(0.3, 0.9),
-                'speaking_rate': random.uniform(0.4, 0.8),
-                'pause_frequency': random.uniform(0.2, 0.7)
-            }
+            if not LIBROSA_AVAILABLE:
+                logger.warning("Librosa not available, using fallback features")
+                return {
+                    'pitch_std': 0.5,
+                    'energy_mean': 0.5,
+                    'speaking_rate': 0.5,
+                    'pause_frequency': 0.5
+                }
+            
+            # Convert audio bytes to numpy array
+            import tempfile
+            import os
+            import soundfile as sf
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
+                # Try to write audio data directly first
+                try:
+                    tmp.write(audio_data)
+                    tmp.flush()
+                    
+                    # Load audio with librosa - try different formats
+                    try:
+                        y, sr = librosa.load(tmp.name, sr=16000, mono=True)
+                    except Exception as e:
+                        logger.warning(f"Failed to load with librosa: {e}")
+                        # Try with different sample rate
+                        y, sr = librosa.load(tmp.name, sr=None, mono=True)
+                        # Resample if needed
+                        if sr != 16000:
+                            y = librosa.resample(y, orig_sr=sr, target_sr=16000)
+                            sr = 16000
+                    
+                    # Extract pitch (F0) using librosa
+                    pitches, magnitudes = librosa.piptrack(y=y, sr=sr, threshold=0.1)
+                    pitch_values = []
+                    for t in range(pitches.shape[1]):
+                        index = magnitudes[:, t].argmax()
+                        pitch = pitches[index, t]
+                        if pitch > 0:
+                            pitch_values.append(pitch)
+                    
+                    pitch_std = np.std(pitch_values) if pitch_values else 0.0
+                    pitch_mean = np.mean(pitch_values) if pitch_values else 0.0
+                    
+                    # Extract energy (RMS)
+                    energy = librosa.feature.rms(y=y)[0]
+                    energy_mean = np.mean(energy)
+                    energy_std = np.std(energy)
+                    
+                    # Extract spectral features
+                    spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+                    spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
+                    
+                    # Calculate speaking rate (approximate)
+                    # Find speech segments using energy
+                    energy_threshold = np.mean(energy) * 0.1
+                    speech_frames = energy > energy_threshold
+                    speech_duration = np.sum(speech_frames) / sr
+                    total_duration = len(y) / sr
+                    speaking_rate = speech_duration / total_duration if total_duration > 0 else 0.0
+                    
+                    # Calculate pause frequency
+                    # Find pauses (low energy regions)
+                    pause_threshold = np.mean(energy) * 0.05
+                    pauses = energy < pause_threshold
+                    pause_count = np.sum(np.diff(pauses.astype(int)) == 1)  # Count pause starts
+                    pause_frequency = pause_count / total_duration if total_duration > 0 else 0.0
+                    
+                    # Normalize features to 0-1 range
+                    normalized_features = {
+                        'pitch_std': min(pitch_std / 1000.0, 1.0),  # Normalize pitch std
+                        'pitch_mean': min(pitch_mean / 500.0, 1.0),  # Normalize pitch mean
+                        'energy_mean': min(energy_mean * 10.0, 1.0),  # Normalize energy
+                        'energy_std': min(energy_std * 10.0, 1.0),
+                        'speaking_rate': min(speaking_rate, 1.0),
+                        'pause_frequency': min(pause_frequency, 1.0),
+                        'spectral_centroid_mean': min(np.mean(spectral_centroids) / 5000.0, 1.0),
+                        'spectral_rolloff_mean': min(np.mean(spectral_rolloff) / 10000.0, 1.0)
+                    }
+                    
+                    return normalized_features
+                    
+                except Exception as e:
+                    logger.error(f"Error processing audio with librosa: {e}")
+                    # Fallback to basic analysis
+                    return {
+                        'pitch_std': 0.5,
+                        'energy_mean': 0.5,
+                        'speaking_rate': 0.5,
+                        'pause_frequency': 0.5
+                    }
+                finally:
+                    try:
+                        os.unlink(tmp.name)
+                    except:
+                        pass
+                        
         except Exception as e:
             logger.error(f"Error extracting audio features: {e}")
-            return {}
+            return {
+                'pitch_std': 0.5,
+                'energy_mean': 0.5,
+                'speaking_rate': 0.5,
+                'pause_frequency': 0.5
+            }
     
     def _transcribe_audio(self, audio_data: bytes) -> str:
         """Transcribe audio to text for sentiment analysis."""
         try:
-            # Simplified transcription - in production, use proper speech recognition
-            sample_texts = [
-                "I feel okay today but sometimes I worry about things",
-                "Life has been challenging lately and I'm not sure what to do",
-                "I'm trying to stay positive but it's difficult sometimes",
-                "I feel confident about some things but uncertain about others"
-            ]
-            return random.choice(sample_texts)
+            if not SPEECH_RECOGNITION_AVAILABLE:
+                logger.warning("Speech recognition not available, using fallback")
+                return "Speech recognition not available"
+            
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
+                try:
+                    # Write audio data to temporary file
+                    tmp.write(audio_data)
+                    tmp.flush()
+                    
+                    # Use speech recognition to transcribe
+                    with sr.AudioFile(tmp.name) as source:
+                        # Adjust for ambient noise
+                        self.speech_recognizer.adjust_for_ambient_noise(source, duration=0.2)
+                        audio = self.speech_recognizer.record(source)
+                    
+                    # Try multiple recognition engines
+                    try:
+                        # Try Google Speech Recognition first
+                        text = self.speech_recognizer.recognize_google(audio)
+                        logger.info(f"Transcribed text: {text[:100]}...")
+                        return text
+                    except sr.UnknownValueError:
+                        logger.warning("Google Speech Recognition could not understand audio")
+                        try:
+                            # Try Sphinx as fallback
+                            text = self.speech_recognizer.recognize_sphinx(audio)
+                            logger.info(f"Transcribed text (Sphinx): {text[:100]}...")
+                            return text
+                        except sr.UnknownValueError:
+                            logger.warning("Sphinx could not understand audio")
+                            return "Could not understand audio"
+                    except sr.RequestError as e:
+                        logger.error(f"Speech recognition service error: {e}")
+                        return "Speech recognition service unavailable"
+                        
+                except Exception as e:
+                    logger.error(f"Error in speech recognition: {e}")
+                    return "Error processing audio for transcription"
+                finally:
+                    try:
+                        os.unlink(tmp.name)
+                    except:
+                        pass
+                        
         except Exception as e:
             logger.error(f"Error transcribing audio: {e}")
             return "Unable to transcribe audio"
@@ -483,28 +742,95 @@ class VideoAudioAnalysisService:
     
     def _calculate_voice_depression_score(self, voice_analysis: Dict, sentiment_analysis: Dict) -> float:
         """Calculate depression score from voice patterns and speech sentiment."""
+        # Voice indicators of depression:
+        # - Low pitch variation (monotone)
+        # - Low energy level
+        # - High pause frequency (hesitation)
+        # - Slow speaking rate
+        # - Low spectral centroid (darker voice)
+        
+        pitch_variation = voice_analysis.get('pitch_std', 0.5)
+        energy_level = voice_analysis.get('energy_mean', 0.5)
+        pause_frequency = voice_analysis.get('pause_frequency', 0.5)
+        speaking_rate = voice_analysis.get('speaking_rate', 0.5)
+        spectral_centroid = voice_analysis.get('spectral_centroid_mean', 0.5)
+        
+        # Calculate voice depression indicators
         voice_score = (
-            (1 - voice_analysis.get('pitch_variation', 0.5)) * 0.3 +
-            (1 - voice_analysis.get('energy_level', 0.5)) * 0.3 +
-            voice_analysis.get('pause_frequency', 0.5) * 0.2 +
-            (1 - voice_analysis.get('speaking_rate', 0.5)) * 0.2
+            (1 - pitch_variation) * 0.25 +  # Monotone speech
+            (1 - energy_level) * 0.25 +     # Low energy
+            pause_frequency * 0.20 +        # Frequent pauses
+            (1 - speaking_rate) * 0.15 +    # Slow speech
+            (1 - spectral_centroid) * 0.15  # Darker voice tone
         )
         
-        sentiment_score = max(0, -sentiment_analysis.get('polarity', 0)) * 0.5
+        # Sentiment analysis contribution
+        polarity = sentiment_analysis.get('polarity', 0)
+        subjectivity = sentiment_analysis.get('subjectivity', 0.5)
         
-        return min((voice_score + sentiment_score) / 1.5, 1.0)
+        # Negative sentiment increases depression score
+        sentiment_score = max(0, -polarity) * 0.6
+        
+        # High subjectivity might indicate emotional distress
+        if subjectivity > 0.7:
+            sentiment_score += 0.2
+        
+        # Combine voice and sentiment scores
+        combined_score = (voice_score * 0.7 + sentiment_score * 0.3)
+        
+        # Apply some sensitivity to make it more responsive
+        if combined_score > 0.6:
+            combined_score = min(combined_score * 1.2, 1.0)  # Boost high scores
+        elif combined_score < 0.3:
+            combined_score = max(combined_score * 0.8, 0.0)  # Reduce low scores
+        
+        return min(combined_score, 1.0)
     
     def _calculate_voice_confidence_score(self, voice_analysis: Dict, sentiment_analysis: Dict) -> float:
         """Calculate confidence score from voice patterns and speech sentiment."""
+        # Voice indicators of confidence:
+        # - High energy level
+        # - Good speaking rate (not too fast/slow)
+        # - Moderate pitch variation (not monotone)
+        # - Low pause frequency
+        # - Higher spectral centroid (brighter voice)
+        
+        energy_level = voice_analysis.get('energy_mean', 0.5)
+        speaking_rate = voice_analysis.get('speaking_rate', 0.5)
+        pitch_variation = voice_analysis.get('pitch_std', 0.5)
+        pause_frequency = voice_analysis.get('pause_frequency', 0.5)
+        spectral_centroid = voice_analysis.get('spectral_centroid_mean', 0.5)
+        
+        # Calculate voice confidence indicators
         voice_score = (
-            voice_analysis.get('energy_level', 0.5) * 0.4 +
-            voice_analysis.get('speaking_rate', 0.5) * 0.3 +
-            voice_analysis.get('pitch_variation', 0.5) * 0.3
+            energy_level * 0.25 +                    # High energy
+            speaking_rate * 0.20 +                   # Good speaking rate
+            pitch_variation * 0.20 +                 # Good pitch variation
+            (1 - pause_frequency) * 0.20 +           # Low pause frequency
+            spectral_centroid * 0.15                 # Brighter voice tone
         )
         
-        sentiment_score = max(0, sentiment_analysis.get('polarity', 0)) * 0.5
+        # Sentiment analysis contribution
+        polarity = sentiment_analysis.get('polarity', 0)
+        subjectivity = sentiment_analysis.get('subjectivity', 0.5)
         
-        return min((voice_score + sentiment_score) / 1.5, 1.0)
+        # Positive sentiment increases confidence
+        sentiment_score = max(0, polarity) * 0.4
+        
+        # Moderate subjectivity might indicate self-assurance
+        if 0.3 <= subjectivity <= 0.7:
+            sentiment_score += 0.1
+        
+        # Combine voice and sentiment scores
+        combined_score = (voice_score * 0.8 + sentiment_score * 0.2)
+        
+        # Apply some sensitivity to make it more responsive
+        if combined_score > 0.7:
+            combined_score = min(combined_score * 1.1, 1.0)  # Slight boost for high scores
+        elif combined_score < 0.4:
+            combined_score = max(combined_score * 0.9, 0.0)  # Slight reduction for low scores
+        
+        return min(combined_score, 1.0)
     
     def _combine_assessments(self, video_analysis: Dict, audio_analysis: Dict) -> Dict:
         """Combine video and audio analysis for comprehensive assessment."""
