@@ -12,184 +12,343 @@ import os
 from werkzeug.utils import secure_filename
 # Composite assessment computation combining PHQ-9, SCID-5-PD, and AV analysis
 def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid_session) -> Dict[str, Any]:
+    """
+    Comprehensive assessment combining all four assessment types:
+    - Audio analysis (voice patterns, speech sentiment)
+    - Video analysis (facial expressions, emotions)
+    - PHQ-9 (Patient Health Questionnaire-9)
+    - SCID-5-PD (Structured Clinical Interview for DSM-5 Personality Disorders)
+    """
     try:
         # Extract AV metrics with better error handling
         av_dep = float(av_results.get('depression_score', 0.5))
         av_conf = float(av_results.get('confidence_score', 0.5))
-        av_confidence = float(av_results.get('confidence_score', 0.5))
         
-        # Extract additional AV metrics for better weighting
+        # Extract detailed AV metrics for better weighting
         video_dep = float(av_results.get('video_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
         audio_dep = float(av_results.get('audio_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
         video_conf = float(av_results.get('video_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
         audio_conf = float(av_results.get('audio_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
 
-        # Extract PHQ-9 score if present
+        # Extract PHQ-9 data
         phq9_score = None
         phq9_severity = None
+        phq9_risk_level = None
         if phq9_session and getattr(phq9_session, 'score', None) is not None:
             phq9_score = float(getattr(phq9_session, 'score', 0) or 0)
             phq9_severity = getattr(phq9_session, 'severity', None)
+            # Determine PHQ-9 risk level
+            if phq9_score >= 20:
+                phq9_risk_level = 'severe'
+            elif phq9_score >= 15:
+                phq9_risk_level = 'moderately_severe'
+            elif phq9_score >= 10:
+                phq9_risk_level = 'moderate'
+            elif phq9_score >= 5:
+                phq9_risk_level = 'mild'
+            else:
+                phq9_risk_level = 'minimal'
 
-        # Extract SCID-5-PD indicators
+        # Extract SCID-5-PD data
         scid_positive = None
         scid_risk = None
+        scid_risk_level = None
         if scid_session:
             scid_positive = int(getattr(scid_session, 'positives', 0) or 0)
             scid_risk = bool(getattr(scid_session, 'risk_flag', False))
+            # Determine SCID-5 risk level
+            if scid_positive >= 15:
+                scid_risk_level = 'high'
+            elif scid_positive >= 10:
+                scid_risk_level = 'moderate'
+            elif scid_positive >= 5:
+                scid_risk_level = 'low'
+            else:
+                scid_risk_level = 'minimal'
 
-        # Normalize PHQ-9 to 0-1
+        # Normalize PHQ-9 to 0-1 scale
         phq9_norm = None
         if phq9_score is not None:
             phq9_norm = min(max(phq9_score / 27.0, 0.0), 1.0)
 
-        # Derive SCID risk weight based on positive count
+        # Calculate SCID-5 risk weight
         scid_risk_weight = 0.0
         if scid_positive is not None:
-            if scid_positive >= 10:  # High risk
-                scid_risk_weight = 0.3
-            elif scid_positive >= 5:  # Medium risk
+            if scid_positive >= 15:  # High risk
+                scid_risk_weight = 0.25
+            elif scid_positive >= 10:  # Medium-high risk
                 scid_risk_weight = 0.15
+            elif scid_positive >= 5:  # Medium risk
+                scid_risk_weight = 0.08
             elif scid_positive >= 2:  # Low risk
-                scid_risk_weight = 0.05
+                scid_risk_weight = 0.03
         
         if scid_risk:
-            scid_risk_weight = max(scid_risk_weight, 0.2)  # Ensure minimum risk if flagged
+            scid_risk_weight = max(scid_risk_weight, 0.15)  # Ensure minimum risk if flagged
 
-        # Enhanced composite depression calculation
-        # Weighted combination: Video 40%, Audio 30%, PHQ-9 20%, SCID 10%
+        # === COMPREHENSIVE DEPRESSION CALCULATION ===
+        # Weighted combination based on assessment availability and reliability
         dep_components = []
         dep_weights = []
+        dep_sources = []
         
-        # Video depression (40% weight)
+        # Video depression (35% weight - most reliable for real-time assessment)
         dep_components.append(video_dep)
-        dep_weights.append(0.4)
+        dep_weights.append(0.35)
+        dep_sources.append('video_emotions')
         
-        # Audio depression (30% weight)
+        # Audio depression (30% weight - good for voice patterns)
         dep_components.append(audio_dep)
-        dep_weights.append(0.3)
+        dep_weights.append(0.30)
+        dep_sources.append('audio_voice')
         
-        # PHQ-9 depression (20% weight if available)
+        # PHQ-9 depression (25% weight if available - clinical standard)
         if phq9_norm is not None:
             dep_components.append(phq9_norm)
-            dep_weights.append(0.2)
+            dep_weights.append(0.25)
+            dep_sources.append('phq9_questionnaire')
         else:
-            # If no PHQ-9, redistribute weight to AV
-            dep_weights[0] += 0.1  # Video gets 50%
-            dep_weights[1] += 0.1  # Audio gets 40%
+            # Redistribute weight if PHQ-9 not available
+            dep_weights[0] += 0.125  # Video gets 47.5%
+            dep_weights[1] += 0.125  # Audio gets 42.5%
         
         # Calculate weighted average
         if dep_components:
-            composite_dep = sum(comp * weight for comp, weight in zip(dep_components, dep_weights)) / sum(dep_weights)
+            base_depression = sum(comp * weight for comp, weight in zip(dep_components, dep_weights)) / sum(dep_weights)
         else:
-            composite_dep = av_dep
+            base_depression = av_dep
         
-        # Add SCID risk boost
-        composite_dep = min(composite_dep + scid_risk_weight, 1.0)
+        # Add SCID-5 risk boost (10% of total weight)
+        scid_boost = scid_risk_weight * 0.1
+        composite_dep = min(base_depression + scid_boost, 1.0)
 
-        # Enhanced composite confidence calculation
+        # === COMPREHENSIVE CONFIDENCE CALCULATION ===
         conf_components = []
         conf_weights = []
+        conf_sources = []
         
-        # Video confidence (50% weight)
+        # Video confidence (45% weight)
         conf_components.append(video_conf)
-        conf_weights.append(0.5)
+        conf_weights.append(0.45)
+        conf_sources.append('video_confidence')
         
-        # Audio confidence (50% weight)
+        # Audio confidence (45% weight)
         conf_components.append(audio_conf)
-        conf_weights.append(0.5)
+        conf_weights.append(0.45)
+        conf_sources.append('audio_confidence')
+        
+        # PHQ-9 confidence boost (10% weight if available)
+        if phq9_norm is not None:
+            phq9_confidence_boost = (1 - phq9_norm) * 0.1  # Lower depression = higher confidence
+            conf_components.append(phq9_confidence_boost)
+            conf_weights.append(0.10)
+            conf_sources.append('phq9_confidence')
+        else:
+            # Redistribute weight
+            conf_weights[0] += 0.05  # Video gets 50%
+            conf_weights[1] += 0.05  # Audio gets 50%
         
         # Calculate weighted average
         if conf_components:
             composite_conf = sum(comp * weight for comp, weight in zip(conf_components, conf_weights)) / sum(conf_weights)
         else:
             composite_conf = av_conf
-        
-        # Adjust confidence based on PHQ-9 if available
-        if phq9_norm is not None:
-            # Lower PHQ-9 scores (less depression) should boost confidence
-            phq9_confidence_boost = (1 - phq9_norm) * 0.2
-            composite_conf = min(composite_conf + phq9_confidence_boost, 1.0)
 
-        # Composite wellbeing calculation
-        wellbeing = (1 - composite_dep) * 0.6 + composite_conf * 0.4
+        # === COMPREHENSIVE WELLBEING CALCULATION ===
+        # Wellbeing = (1 - depression) * 0.7 + confidence * 0.3
+        # This emphasizes mental health over confidence
+        wellbeing = (1 - composite_dep) * 0.7 + composite_conf * 0.3
         
-        # More nuanced wellbeing categorization
-        if wellbeing > 0.75:
+        # Enhanced wellbeing categorization
+        if wellbeing > 0.8:
             wellbeing_label = 'excellent'
-        elif wellbeing > 0.6:
+            wellbeing_color = 'green'
+        elif wellbeing > 0.65:
             wellbeing_label = 'good'
-        elif wellbeing > 0.4:
+            wellbeing_color = 'light-green'
+        elif wellbeing > 0.5:
             wellbeing_label = 'moderate'
-        elif wellbeing > 0.25:
+            wellbeing_color = 'yellow'
+        elif wellbeing > 0.35:
             wellbeing_label = 'concerning'
+            wellbeing_color = 'orange'
+        elif wellbeing > 0.2:
+            wellbeing_label = 'serious'
+            wellbeing_color = 'red'
         else:
             wellbeing_label = 'critical'
+            wellbeing_color = 'dark-red'
 
-        # More nuanced depression level categorization
-        if composite_dep < 0.2:
+        # Enhanced depression level categorization
+        if composite_dep < 0.15:
             dep_label = 'minimal'
-        elif composite_dep < 0.4:
+            dep_color = 'green'
+            dep_urgency = 'low'
+        elif composite_dep < 0.35:
             dep_label = 'mild'
-        elif composite_dep < 0.6:
+            dep_color = 'light-green'
+            dep_urgency = 'low'
+        elif composite_dep < 0.55:
             dep_label = 'moderate'
-        elif composite_dep < 0.8:
+            dep_color = 'yellow'
+            dep_urgency = 'medium'
+        elif composite_dep < 0.75:
             dep_label = 'severe'
+            dep_color = 'orange'
+            dep_urgency = 'high'
         else:
             dep_label = 'critical'
+            dep_color = 'red'
+            dep_urgency = 'urgent'
 
-        # More nuanced confidence level categorization
+        # Enhanced confidence level categorization
         if composite_conf > 0.8:
             conf_label = 'very_high'
-        elif composite_conf > 0.6:
+            conf_color = 'green'
+        elif composite_conf > 0.65:
             conf_label = 'high'
-        elif composite_conf > 0.4:
+            conf_color = 'light-green'
+        elif composite_conf > 0.5:
             conf_label = 'moderate'
-        elif composite_conf > 0.2:
+            conf_color = 'yellow'
+        elif composite_conf > 0.35:
             conf_label = 'low'
+            conf_color = 'orange'
         else:
             conf_label = 'very_low'
+            conf_color = 'red'
+
+        # === RISK ASSESSMENT ===
+        overall_risk = 'low'
+        risk_factors = []
+        
+        if composite_dep > 0.7:
+            overall_risk = 'high'
+            risk_factors.append('high_depression_score')
+        elif composite_dep > 0.5:
+            overall_risk = 'medium'
+            risk_factors.append('moderate_depression_score')
+        
+        if phq9_score and phq9_score >= 15:
+            overall_risk = 'high'
+            risk_factors.append('phq9_severe')
+        elif phq9_score and phq9_score >= 10:
+            if overall_risk == 'low':
+                overall_risk = 'medium'
+            risk_factors.append('phq9_moderate')
+        
+        if scid_positive and scid_positive >= 10:
+            overall_risk = 'high'
+            risk_factors.append('scid_high_positive')
+        elif scid_positive and scid_positive >= 5:
+            if overall_risk == 'low':
+                overall_risk = 'medium'
+            risk_factors.append('scid_moderate_positive')
+        
+        if scid_risk:
+            overall_risk = 'high'
+            risk_factors.append('scid_risk_flag')
+
+        # === RECOMMENDATIONS ===
+        recommendations = []
+        
+        if overall_risk == 'high' or composite_dep > 0.7:
+            recommendations.extend([
+                "Immediate professional mental health consultation recommended",
+                "Consider crisis intervention services if experiencing suicidal thoughts",
+                "Regular monitoring and follow-up assessments needed"
+            ])
+        elif overall_risk == 'medium' or composite_dep > 0.5:
+            recommendations.extend([
+                "Schedule appointment with mental health professional",
+                "Consider therapy or counseling services",
+                "Monitor symptoms and track mood regularly"
+            ])
+        else:
+            recommendations.extend([
+                "Continue current mental health practices",
+                "Regular self-assessment and monitoring",
+                "Consider preventive mental health strategies"
+            ])
 
         return {
+            # Primary Results
             'depression_score': round(composite_dep, 3),
             'depression_level': dep_label,
+            'depression_color': dep_color,
+            'depression_urgency': dep_urgency,
             'confidence_score': round(composite_conf, 3),
             'confidence_level': conf_label,
+            'confidence_color': conf_color,
             'overall_wellbeing': wellbeing_label,
+            'wellbeing_color': wellbeing_color,
+            'overall_risk': overall_risk,
+            'risk_factors': risk_factors,
+            'recommendations': recommendations,
+            
+            # Assessment Sources
             'inputs_used': {
-                'av_analysis': True,
+                'video_analysis': True,
+                'audio_analysis': True,
                 'phq9_used': phq9_norm is not None,
-                'scid_risk': bool(scid_risk),
-                'video_weight': dep_weights[0] if dep_weights else 0.4,
-                'audio_weight': dep_weights[1] if len(dep_weights) > 1 else 0.3
+                'scid5pd_used': scid_session is not None,
+                'total_assessments': sum([True, True, phq9_norm is not None, scid_session is not None])
             },
-            'phq9': {
-                'score': phq9_score,
-                'severity': phq9_severity,
-                'normalized_score': phq9_norm
-            } if phq9_score is not None else None,
-            'scid5pd': {
-                'positives': scid_positive,
-                'risk_flag': scid_risk,
-                'risk_weight': scid_risk_weight
-            } if scid_session else None,
+            
+            # Component Details
             'component_scores': {
                 'video_depression': round(video_dep, 3),
                 'audio_depression': round(audio_dep, 3),
                 'video_confidence': round(video_conf, 3),
-                'audio_confidence': round(audio_conf, 3)
-            }
+                'audio_confidence': round(audio_conf, 3),
+                'phq9_normalized': round(phq9_norm, 3) if phq9_norm else None,
+                'scid_risk_weight': round(scid_risk_weight, 3)
+            },
+            
+            # PHQ-9 Details
+            'phq9': {
+                'score': phq9_score,
+                'severity': phq9_severity,
+                'risk_level': phq9_risk_level,
+                'normalized_score': phq9_norm
+            } if phq9_score is not None else None,
+            
+            # SCID-5-PD Details
+            'scid5pd': {
+                'positives': scid_positive,
+                'risk_flag': scid_risk,
+                'risk_level': scid_risk_level,
+                'risk_weight': round(scid_risk_weight, 3)
+            } if scid_session else None,
+            
+            # Weighting Information
+            'weighting': {
+                'video_weight': round(dep_weights[0], 3),
+                'audio_weight': round(dep_weights[1], 3),
+                'phq9_weight': round(dep_weights[2], 3) if len(dep_weights) > 2 else 0,
+                'scid_weight': round(scid_boost, 3)
+            },
+            
+            # Metadata
+            'assessment_timestamp': datetime.now().isoformat(),
+            'assessment_version': '2.0',
+            'completeness_score': round(sum([True, True, phq9_norm is not None, scid_session is not None]) / 4, 3)
         }
+        
     except Exception as e:
         print(f"Composite assessment error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             'depression_score': av_results.get('depression_score', 0.5),
             'depression_level': av_results.get('depression_level', 'moderate'),
             'confidence_score': av_results.get('confidence_score', 0.5),
             'confidence_level': av_results.get('confidence_level', 'moderate'),
             'overall_wellbeing': av_results.get('overall_wellbeing', 'moderate'),
+            'overall_risk': 'unknown',
             'inputs_used': {'av_analysis': True, 'phq9_used': False, 'scid_risk': False},
-            'error': str(e)
+            'error': str(e),
+            'assessment_timestamp': datetime.now().isoformat()
         }
 
 # Authentication Blueprint
@@ -1089,60 +1248,93 @@ def video_audio_assessment():
 def analyze_recording():
     """Analyze uploaded video/audio recording for mental health indicators"""
     try:
+        print(f"=== ANALYZE RECORDING REQUEST ===")
+        print(f"Files received: {list(request.files.keys())}")
+        print(f"Form data: {dict(request.form)}")
+        
+        # Check for recording file
         if 'recording' not in request.files:
             return jsonify({'error': 'No recording file provided'}), 400
         
         recording_file = request.files['recording']
         assessment_type = request.form.get('assessment_type', 'audio-only')
         
+        print(f"Recording file: {recording_file.filename}")
+        print(f"Assessment type: {assessment_type}")
+        
         if recording_file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
         # Read the recording data
         recording_data = recording_file.read()
+        print(f"Recording data size: {len(recording_data)} bytes")
         
         # Initialize analysis service
         analysis_service = VideoAudioAnalysisService()
         
         # Perform analysis based on assessment type
         if assessment_type == 'video-audio':
+            print("Performing video+audio analysis...")
             # For video+audio, we need to separate video and audio data
             # In a real implementation, you'd properly extract audio from video
+            # For now, we'll use the same data but process it differently
             results = analysis_service.analyze_video_audio(recording_data, recording_data)
         else:
+            print("Performing audio-only analysis...")
             # Audio-only analysis
             results = analysis_service.analyze_audio_only(recording_data)
         
+        print(f"Analysis results: {results.get('depression_score', 'N/A')} depression, {results.get('confidence_score', 'N/A')} confidence")
+        
+        # Get latest PHQ-9 and SCID-5-PD sessions for combined assessment
+        latest_phq9 = None
+        latest_scid = None
+        if current_user and current_user.is_authenticated:
+            print(f"User authenticated: {current_user.id}")
+            latest_phq9 = AssessmentSession.query.filter_by(
+                user_id=current_user.id,
+                instrument='phq9'
+            ).order_by(AssessmentSession.created_at.desc()).first()
+            latest_scid = AssessmentSession.query.filter_by(
+                user_id=current_user.id,
+                instrument='scid5pd'
+            ).order_by(AssessmentSession.created_at.desc()).first()
+            
+            print(f"Latest PHQ-9: {latest_phq9.score if latest_phq9 else 'None'}")
+            print(f"Latest SCID-5: {latest_scid.positives if latest_scid else 'None'}")
+        else:
+            print("User not authenticated, using AV analysis only")
+
+        # Compute comprehensive combined assessment
+        print("Computing combined assessment...")
+        composite = _compute_composite_assessment(results, latest_phq9, latest_scid)
+        print(f"Combined assessment: {composite.get('depression_score', 'N/A')} depression, {composite.get('overall_risk', 'N/A')} risk")
+        
+        # Update results with combined assessment
+        results.update({
+            'composite_assessment': composite,
+            'depression_score': composite.get('depression_score', results.get('depression_score', 0.5)),
+            'depression_level': composite.get('depression_level', results.get('depression_level', 'moderate')),
+            'confidence_score': composite.get('confidence_score', results.get('confidence_score', 0.5)),
+            'confidence_level': composite.get('confidence_level', results.get('confidence_level', 'moderate')),
+            'overall_wellbeing': composite.get('overall_wellbeing', results.get('overall_wellbeing', 'moderate')),
+            'overall_risk': composite.get('overall_risk', 'unknown'),
+            'risk_factors': composite.get('risk_factors', []),
+            'recommendations': composite.get('recommendations', []),
+            'inputs_used': composite.get('inputs_used', {}),
+            'component_scores': composite.get('component_scores', {}),
+            'weighting': composite.get('weighting', {}),
+            'completeness_score': composite.get('completeness_score', 0.5)
+        })
+        
         # Add escalation hints for frontend if severe
-        try:
-            if results.get('depression_level') == 'high' or results.get('overall_wellbeing') == 'concerning':
-                results['requires_escalation'] = True
-                results['professional_referrals'] = [
-                    {'type': 'emergency', 'title': 'NIMHANS Helpline', 'contact': '080-46110007', 'urgent': True},
-                    {'type': 'crisis', 'title': 'Indian Suicide Prevention', 'contact': '9152987821', 'urgent': True},
-                    {'type': 'professional', 'title': 'Mental Health Professionals', 'contact': '/doctors/', 'urgent': False}
-                ]
-        except Exception:
-            pass
-
-        # Merge with latest PHQ-9 and SCID-5-PD to produce a composite assessment
-        try:
-            latest_phq9 = None
-            latest_scid = None
-            if current_user and current_user.is_authenticated:
-                latest_phq9 = AssessmentSession.query.filter_by(
-                    user_id=current_user.id,
-                    instrument='phq9'
-                ).order_by(AssessmentSession.created_at.desc()).first()
-                latest_scid = AssessmentSession.query.filter_by(
-                    user_id=current_user.id,
-                    instrument='scid5pd'
-                ).order_by(AssessmentSession.created_at.desc()).first()
-
-            composite = _compute_composite_assessment(results, latest_phq9, latest_scid)
-            results['composite_assessment'] = composite
-        except Exception as e:
-            current_app.logger.error(f"Error computing composite assessment: {str(e)}")
+        if composite.get('overall_risk') == 'high' or composite.get('depression_level') in ['severe', 'critical']:
+            results['requires_escalation'] = True
+            results['professional_referrals'] = [
+                {'type': 'emergency', 'title': 'NIMHANS Helpline', 'contact': '080-46110007', 'urgent': True},
+                {'type': 'crisis', 'title': 'Indian Suicide Prevention', 'contact': '9152987821', 'urgent': True},
+                {'type': 'professional', 'title': 'Mental Health Professionals', 'contact': '/doctors/', 'urgent': False}
+            ]
 
         # Save assessment results to database
         try:
@@ -1150,19 +1342,29 @@ def analyze_recording():
                 user_id=current_user.id if current_user.is_authenticated else None,
                 assessment_type='video_audio_analysis',
                 results=json.dumps(results),
-                confidence=results.get('confidence_score', 0.5),
+                confidence=composite.get('confidence_score', 0.5),
                 created_at=datetime.now(timezone.utc)
             )
             db.session.add(assessment_session)
             db.session.commit()
+            print("Assessment saved to database")
         except Exception as e:
             print(f"Error saving assessment: {e}")
             db.session.rollback()
+        
+        print(f"=== FINAL RESULTS ===")
+        print(f"Depression: {results.get('depression_score', 'N/A')} ({results.get('depression_level', 'N/A')})")
+        print(f"Confidence: {results.get('confidence_score', 'N/A')} ({results.get('confidence_level', 'N/A')})")
+        print(f"Wellbeing: {results.get('overall_wellbeing', 'N/A')}")
+        print(f"Risk: {results.get('overall_risk', 'N/A')}")
+        print(f"Completeness: {results.get('completeness_score', 'N/A')}")
         
         return jsonify(results)
         
     except Exception as e:
         print(f"Error analyzing recording: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': 'Failed to analyze recording',
             'depression_score': 0.5,
@@ -1170,11 +1372,68 @@ def analyze_recording():
             'depression_level': 'moderate',
             'confidence_level': 'moderate',
             'overall_wellbeing': 'moderate',
+            'overall_risk': 'unknown',
             'recommendations': [
                 'Please try the assessment again',
                 'Consider speaking with a mental health professional if you continue to experience difficulties'
             ]
         }), 500
+
+@assessment_bp.route('/api/test-combined-assessment', methods=['POST'])
+def test_combined_assessment():
+    """Test endpoint to verify combined assessment is working"""
+    try:
+        print("=== TESTING COMBINED ASSESSMENT ===")
+        
+        # Create mock AV results
+        av_results = {
+            'depression_score': 0.6,
+            'confidence_score': 0.4,
+            'video_analysis': {
+                'depression_indicators': {'score': 0.65},
+                'confidence_indicators': {'score': 0.35}
+            },
+            'audio_analysis': {
+                'depression_indicators': {'score': 0.55},
+                'confidence_indicators': {'score': 0.45}
+            }
+        }
+        
+        # Get latest PHQ-9 and SCID-5 sessions
+        latest_phq9 = None
+        latest_scid = None
+        if current_user and current_user.is_authenticated:
+            latest_phq9 = AssessmentSession.query.filter_by(
+                user_id=current_user.id,
+                instrument='phq9'
+            ).order_by(AssessmentSession.created_at.desc()).first()
+            latest_scid = AssessmentSession.query.filter_by(
+                user_id=current_user.id,
+                instrument='scid5pd'
+            ).order_by(AssessmentSession.created_at.desc()).first()
+        
+        print(f"PHQ-9 available: {latest_phq9 is not None}")
+        print(f"SCID-5 available: {latest_scid is not None}")
+        
+        # Compute combined assessment
+        composite = _compute_composite_assessment(av_results, latest_phq9, latest_scid)
+        
+        print(f"Combined result: {composite}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Combined assessment test completed',
+            'av_results': av_results,
+            'composite_assessment': composite,
+            'phq9_available': latest_phq9 is not None,
+            'scid5_available': latest_scid is not None
+        })
+        
+    except Exception as e:
+        print(f"Error in test: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @assessment_bp.route('/api/save-assessment', methods=['POST'])
 def save_assessment():
