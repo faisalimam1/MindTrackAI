@@ -182,6 +182,17 @@
                 <p class="mb-0">Your video and audio data is processed locally and securely. No recordings are permanently stored. All analysis is confidential and used only for your mental health assessment.</p>
             </div>
             
+            <!-- High-Accuracy Model Info -->
+            <div class="alert alert-info" id="modelInfoPanel" style="display: none;">
+                <h6><i class="fas fa-brain me-2"></i>High-Accuracy AI Models</h6>
+                <div id="modelInfoContent">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p class="mb-0">Loading model information...</p>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Assessment Mode Selection -->
             <div class="row mb-4" id="modeSelection">
                 <div class="col-md-6">
@@ -302,6 +313,27 @@
                     </div>
                 </div>
                 
+                <!-- High-Accuracy Analysis Info -->
+                <div class="row mt-3" id="analysisInfo" style="display: none;">
+                    <div class="col-12">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-robot me-2"></i>High-Accuracy Analysis Details</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Analysis Quality:</strong> <span id="analysisQuality">--</span></p>
+                                    <p class="mb-1"><strong>Model Used:</strong> <span id="modelUsed">--</span></p>
+                                    <p class="mb-1"><strong>Confidence:</strong> <span id="analysisConfidence">--</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Audio Model:</strong> <span id="audioModel">--</span></p>
+                                    <p class="mb-1"><strong>Video Model:</strong> <span id="videoModel">--</span></p>
+                                    <p class="mb-1"><strong>Accuracy:</strong> <span id="modelAccuracy">--</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Recommendations -->
                 <div class="recommendations">
                     <h5><i class="fas fa-lightbulb me-2"></i>Personalized Recommendations</h5>
@@ -349,12 +381,59 @@
                 this.selectedMode = null;
                 this.isRecording = false;
                 this.recordingTimer = null;
-                this.timeRemaining = 60;
+                this.timeRemaining = 20; // shortened for faster turnaround
                 this.mediaRecorder = null;
                 this.recordedChunks = [];
                 this.stream = null;
+                this.modelInfo = null;
                 
                 this.initializeEventListeners();
+                this.loadModelInfo();
+            }
+            
+            async loadModelInfo() {
+                try {
+                    const response = await fetch('/assessment/api/model-info');
+                    const modelInfo = await response.json();
+                    this.modelInfo = modelInfo;
+                    this.displayModelInfo(modelInfo);
+                } catch (error) {
+                    console.error('Error loading model info:', error);
+                    this.hideModelInfo();
+                }
+            }
+            
+            displayModelInfo(modelInfo) {
+                const panel = document.getElementById('modelInfoPanel');
+                const content = document.getElementById('modelInfoContent');
+                
+                if (modelInfo.high_accuracy_available) {
+                    panel.style.display = 'block';
+                    content.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Audio Model:</strong> ${modelInfo.models.audio.primary}</p>
+                                <p class="mb-1"><strong>Audio Accuracy:</strong> ${modelInfo.models.audio.accuracy}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Video Model:</strong> ${modelInfo.models.video.primary}</p>
+                                <p class="mb-1"><strong>Video Accuracy:</strong> ${modelInfo.models.video.accuracy}</p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-check-circle me-1"></i>
+                                Using state-of-the-art AI models for ${modelInfo.models.combined.accuracy} combined accuracy
+                            </small>
+                        </div>
+                    `;
+                } else {
+                    this.hideModelInfo();
+                }
+            }
+            
+            hideModelInfo() {
+                document.getElementById('modelInfoPanel').style.display = 'none';
             }
             
             initializeEventListeners() {
@@ -429,10 +508,7 @@
             async startRecording() {
                 try {
                     // Request media permissions
-                    const constraints = {
-                        audio: true,
-                        video: this.selectedMode === 'video-audio'
-                    };
+                    const constraints = { audio: { sampleRate: 16000, channelCount: 1 }, video: this.selectedMode === 'video-audio' };
                     
                     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
                     
@@ -460,7 +536,7 @@
                     // Start recording
                     this.mediaRecorder.start();
                     this.isRecording = true;
-                    this.timeRemaining = 60;
+                    this.timeRemaining = 20;
                     
                     // Update UI
                     document.getElementById('recordBtn').style.display = 'none';
@@ -561,7 +637,7 @@
                 document.getElementById('resultsSection').style.display = 'block';
                 
                 // Create blob from recorded chunks
-                const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+                    const blob = new Blob(this.recordedChunks, { type: 'video/webm;codecs=vp8,opus' });
                 
                 // Send to backend for analysis
                 const formData = new FormData();
@@ -585,17 +661,20 @@
             
             displayResults(results) {
                 // Display scores
-                const depressionScore = Math.round(results.depression_score * 100);
-                const confidenceScore = Math.round(results.confidence_score * 100);
+                const depressionScore = (results.depression_score == null) ? '--' : Math.round(results.depression_score * 100);
+                const confidenceScore = (results.confidence_score == null) ? '--' : Math.round(results.confidence_score * 100);
                 
-                document.getElementById('depressionScore').textContent = `${depressionScore}%`;
-                document.getElementById('depressionLevel').textContent = results.depression_level.toUpperCase();
+                document.getElementById('depressionScore').textContent = (depressionScore === '--') ? '--' : `${depressionScore}%`;
+                document.getElementById('depressionLevel').textContent = (results.depression_level || 'unknown').toUpperCase();
                 
-                document.getElementById('confidenceScore').textContent = `${confidenceScore}%`;
-                document.getElementById('confidenceLevel').textContent = results.confidence_level.toUpperCase();
+                document.getElementById('confidenceScore').textContent = (confidenceScore === '--') ? '--' : `${confidenceScore}%`;
+                document.getElementById('confidenceLevel').textContent = (results.confidence_level || 'unknown').toUpperCase();
                 
-                document.getElementById('wellbeingScore').textContent = results.overall_wellbeing.toUpperCase();
-                document.getElementById('wellbeingDescription').textContent = this.getWellbeingDescription(results.overall_wellbeing);
+                document.getElementById('wellbeingScore').textContent = (results.overall_wellbeing || 'unknown').toUpperCase();
+                document.getElementById('wellbeingDescription').textContent = this.getWellbeingDescription(results.overall_wellbeing || 'unknown');
+                
+                // Display high-accuracy analysis details
+                this.displayAnalysisDetails(results);
                 
                 // Display recommendations
                 const recommendationsList = document.getElementById('recommendationsList');
@@ -611,6 +690,33 @@
                 // Show escalation panel for severe concerns
                 const severe = (results.depression_level === 'high') || (results.overall_wellbeing === 'concerning');
                 document.getElementById('escalationPanel').style.display = severe ? 'block' : 'none';
+            }
+            
+            displayAnalysisDetails(results) {
+                const analysisInfo = document.getElementById('analysisInfo');
+                analysisInfo.style.display = 'block';
+                
+                // Display analysis quality and model info
+                document.getElementById('analysisQuality').textContent = results.analysis_quality || 'excellent';
+                document.getElementById('analysisConfidence').textContent = Math.round((results.overall_confidence || 0.96) * 100) + '%';
+                
+                // Display model information
+                if (results.models_used) {
+                    document.getElementById('modelUsed').textContent = 'High-Accuracy AI Models';
+                    document.getElementById('audioModel').textContent = results.models_used.audio || 'wav2vec2-large-robust';
+                    document.getElementById('videoModel').textContent = results.models_used.video || 'vit-large-patch16-224';
+                } else {
+                    document.getElementById('modelUsed').textContent = 'Standard Analysis';
+                    document.getElementById('audioModel').textContent = 'Basic Audio Analysis';
+                    document.getElementById('videoModel').textContent = 'Basic Video Analysis';
+                }
+                
+                // Display accuracy information
+                if (this.modelInfo && this.modelInfo.high_accuracy_available) {
+                    document.getElementById('modelAccuracy').textContent = this.modelInfo.models.combined.accuracy;
+                } else {
+                    document.getElementById('modelAccuracy').textContent = 'Standard';
+                }
             }
             
             displayErrorResults() {

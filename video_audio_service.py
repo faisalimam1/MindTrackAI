@@ -981,27 +981,27 @@ class VideoAudioAnalysisService:
             'timestamp': datetime.now().isoformat(),
             'assessment_type': assessment_type,
             'error': 'Analysis failed, using fallback assessment',
-            'depression_score': 0.5,
-            'confidence_score': 0.5,
+            'depression_score': None,
+            'confidence_score': None,
             'recommendations': ['Please try the assessment again', 'Consider speaking with a mental health professional'],
-            'confidence': 0.3
+            'confidence': 0.0
         }
     
     def _get_fallback_video_analysis(self) -> Dict:
         """Return fallback video analysis."""
         return {
-            'emotion_scores': {'happiness': 0.5, 'sadness': 0.3, 'neutral': 0.2},
-            'depression_indicators': {'score': 0.5, 'level': 'moderate'},
-            'confidence_indicators': {'score': 0.5, 'level': 'moderate'},
-            'analysis_quality': 'limited'
+            'emotion_scores': None,
+            'depression_indicators': {'score': None, 'level': 'unknown'},
+            'confidence_indicators': {'score': None, 'level': 'unknown'},
+            'analysis_quality': 'insufficient'
         }
     
     def _get_fallback_audio_analysis(self) -> Dict:
         """Return fallback audio analysis."""
         return {
-            'voice_features': {'energy_level': 0.5, 'speaking_rate': 0.5},
+            'voice_features': None,
             'speech_sentiment': {'polarity': 0.0, 'sentiment_label': 'neutral'},
-            'depression_indicators': {'score': 0.5, 'level': 'moderate'},
-            'confidence_indicators': {'score': 0.5, 'level': 'moderate'},
-            'speech_quality': 'limited'
+            'depression_indicators': {'score': None, 'level': 'unknown'},
+            'confidence_indicators': {'score': None, 'level': 'unknown'},
+            'speech_quality': 'insufficient'
         }

@@ -4,6 +4,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 from models import db, User, JournalEntry, MoodEntry, Task, Goal, AssessmentSession, ChatMessage
 from openai_service import OpenAIService, init_openai
 from video_audio_service import VideoAudioAnalysisService
+from video_audio_service_high_accuracy import analyze_video_audio_high_accuracy, analyze_audio_high_accuracy, analyze_video_high_accuracy, get_high_accuracy_model_info
+import os
 from datetime import datetime, timezone
 import random
 from typing import Dict, Any, List
@@ -1269,20 +1271,22 @@ def analyze_recording():
         recording_data = recording_file.read()
         print(f"Recording data size: {len(recording_data)} bytes")
         
-        # Initialize analysis service
-        analysis_service = VideoAudioAnalysisService()
-        
-        # Perform analysis based on assessment type
-        if assessment_type == 'video-audio':
-            print("Performing video+audio analysis...")
-            # For video+audio, we need to separate video and audio data
-            # In a real implementation, you'd properly extract audio from video
-            # For now, we'll use the same data but process it differently
-            results = analysis_service.analyze_video_audio(recording_data, recording_data)
+        # Select fast mode vs high-accuracy
+        fast_mode = request.form.get('fast', os.getenv('FAST_MODE', '1')) in ['1', 'true', 'True']
+        if fast_mode:
+            print("FAST_MODE enabled: using lightweight analysis")
+            service = VideoAudioAnalysisService()
+            if assessment_type == 'video-audio':
+                results = service.analyze_video_audio(recording_data, recording_data)
+            else:
+                # Reuse audio path via combined API
+                results = service.analyze_video_audio(b"", recording_data)
         else:
-            print("Performing audio-only analysis...")
-            # Audio-only analysis
-            results = analysis_service.analyze_audio_only(recording_data)
+            print("Using high-accuracy models for analysis...")
+            if assessment_type == 'video-audio':
+                results = analyze_video_audio_high_accuracy(recording_data, recording_data)
+            else:
+                results = analyze_audio_high_accuracy(recording_data)
         
         print(f"Analysis results: {results.get('depression_score', 'N/A')} depression, {results.get('confidence_score', 'N/A')} confidence")
         
@@ -1367,11 +1371,11 @@ def analyze_recording():
         traceback.print_exc()
         return jsonify({
             'error': 'Failed to analyze recording',
-            'depression_score': 0.5,
-            'confidence_score': 0.5,
-            'depression_level': 'moderate',
-            'confidence_level': 'moderate',
-            'overall_wellbeing': 'moderate',
+            'depression_score': None,
+            'confidence_score': None,
+            'depression_level': 'unknown',
+            'confidence_level': 'unknown',
+            'overall_wellbeing': 'unknown',
             'overall_risk': 'unknown',
             'recommendations': [
                 'Please try the assessment again',
@@ -1462,5 +1466,18 @@ def save_assessment():
         print(f"Error saving assessment: {e}")
         db.session.rollback()
         return jsonify({'error': 'Failed to save assessment'}), 500
+
+@assessment_bp.route('/api/model-info')
+def get_model_info():
+    """Get information about high-accuracy models"""
+    try:
+        model_info = get_high_accuracy_model_info()
+        return jsonify(model_info)
+    except Exception as e:
+        print(f"Error getting model info: {e}")
+        return jsonify({
+            'error': 'Failed to get model information',
+            'high_accuracy_available': False
+        }), 500
 
 
