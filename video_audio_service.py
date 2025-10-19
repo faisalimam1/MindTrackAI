@@ -568,25 +568,20 @@ class VideoAudioAnalysisService:
                     'pause_frequency': 0.5
                 }
             
-            # Convert audio bytes to numpy array
+            # Convert incoming bytes (likely webm/opus) to wav first
             import tempfile
             import os
-            import soundfile as sf
-            
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
-                # Try to write audio data directly first
                 try:
-                    tmp.write(audio_data)
-                    tmp.flush()
+                    # Ensure we have a wav container; try robust conversion path
+                    self._write_audio_wav(audio_data, tmp.name)
                     
-                    # Load audio with librosa - try different formats
+                    # Load audio with librosa
                     try:
                         y, sr = librosa.load(tmp.name, sr=16000, mono=True)
                     except Exception as e:
-                        logger.warning(f"Failed to load with librosa: {e}")
-                        # Try with different sample rate
+                        logger.warning(f"Failed to load wav with librosa: {e}")
                         y, sr = librosa.load(tmp.name, sr=None, mono=True)
-                        # Resample if needed
                         if sr != 16000:
                             y = librosa.resample(y, orig_sr=sr, target_sr=16000)
                             sr = 16000
@@ -653,7 +648,7 @@ class VideoAudioAnalysisService:
                 finally:
                     try:
                         os.unlink(tmp.name)
-                    except:
+                    except Exception:
                         pass
                         
         except Exception as e:
@@ -677,9 +672,8 @@ class VideoAudioAnalysisService:
             
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
                 try:
-                    # Write audio data to temporary file
-                    tmp.write(audio_data)
-                    tmp.flush()
+                    # Convert bytes to wav for SR compatibility
+                    self._write_audio_wav(audio_data, tmp.name)
                     
                     # Use speech recognition to transcribe
                     with sr.AudioFile(tmp.name) as source:

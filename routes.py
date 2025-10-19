@@ -27,10 +27,28 @@ def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid
         av_conf = float(av_results.get('confidence_score', 0.5))
         
         # Extract detailed AV metrics for better weighting
-        video_dep = float(av_results.get('video_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
-        audio_dep = float(av_results.get('audio_analysis', {}).get('depression_indicators', {}).get('score', av_dep))
-        video_conf = float(av_results.get('video_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
-        audio_conf = float(av_results.get('audio_analysis', {}).get('confidence_indicators', {}).get('score', av_conf))
+        # Try new structure first (high-accuracy models), fallback to old structure
+        video_analysis = av_results.get('video_analysis', {})
+        if isinstance(video_analysis, dict) and 'depression_score' in video_analysis:
+            video_dep = float(video_analysis.get('depression_score', av_dep))
+        else:
+            video_dep = float(video_analysis.get('depression_indicators', {}).get('score', av_dep))
+        # Try new structure first (high-accuracy models), fallback to old structure
+        audio_analysis = av_results.get('audio_analysis', {})
+        if isinstance(audio_analysis, dict) and 'depression_score' in audio_analysis:
+            audio_dep = float(audio_analysis.get('depression_score', av_dep))
+        else:
+            audio_dep = float(audio_analysis.get('depression_indicators', {}).get('score', av_dep))
+        # Try new structure first (high-accuracy models), fallback to old structure
+        if isinstance(video_analysis, dict) and 'confidence_score' in video_analysis:
+            video_conf = float(video_analysis.get('confidence_score', av_conf))
+        else:
+            video_conf = float(video_analysis.get('confidence_indicators', {}).get('score', av_conf))
+        # Try new structure first (high-accuracy models), fallback to old structure
+        if isinstance(audio_analysis, dict) and 'confidence_score' in audio_analysis:
+            audio_conf = float(audio_analysis.get('confidence_score', av_conf))
+        else:
+            audio_conf = float(audio_analysis.get('confidence_indicators', {}).get('score', av_conf))
 
         # Extract PHQ-9 data
         phq9_score = None
@@ -253,7 +271,8 @@ def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid
 
         # === RECOMMENDATIONS ===
         recommendations = []
-        
+
+        # Base on overall risk
         if overall_risk == 'high' or composite_dep > 0.7:
             recommendations.extend([
                 "Immediate professional mental health consultation recommended",
@@ -272,6 +291,24 @@ def _compute_composite_assessment(av_results: Dict[str, Any], phq9_session, scid
                 "Regular self-assessment and monitoring",
                 "Consider preventive mental health strategies"
             ])
+
+        # Personalize with AV signals
+        if audio_dep > 0.6:
+            recommendations.append("Practice guided breathing and vocal relaxation to reduce vocal strain")
+        if video_dep > 0.6:
+            recommendations.append("Try brief facial relaxation and posture resets during the day")
+        if audio_conf < 0.4 and video_conf < 0.4:
+            recommendations.append("Confidence-building exercises and positive self-affirmations can help")
+
+        # Personalize with PHQ-9
+        if phq9_severity in ['moderately_severe', 'severe']:
+            recommendations.append("Discuss treatment options (CBT/medication) with a licensed professional")
+        elif phq9_severity == 'moderate':
+            recommendations.append("Consider structured CBT-based self-help modules")
+
+        # Personalize with SCID risk flags
+        if scid_risk == 'high':
+            recommendations.append("Comprehensive clinical evaluation is advised due to risk indicators")
 
         return {
             # Primary Results
@@ -360,23 +397,37 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def register():
     """User registration"""
     if request.method == 'POST':
-        data = request.form
+        # Handle both form data and JSON data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+            
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
         
         if not all([username, email, password]):
-            flash('All fields are required', 'error')
-            return redirect(url_for('auth.register'))
+            if request.is_json:
+                return jsonify({'error': 'All fields are required'}), 400
+            else:
+                flash('All fields are required', 'error')
+                return redirect(url_for('auth.register'))
         
         # Check if user already exists
         if User.query.filter_by(username=username).first():
-            flash('Username already exists', 'error')
-            return redirect(url_for('auth.register'))
+            if request.is_json:
+                return jsonify({'error': 'Username already exists'}), 400
+            else:
+                flash('Username already exists', 'error')
+                return redirect(url_for('auth.register'))
         
         if User.query.filter_by(email=email).first():
-            flash('Email already registered', 'error')
-            return redirect(url_for('auth.register'))
+            if request.is_json:
+                return jsonify({'error': 'Email already registered'}), 400
+            else:
+                flash('Email already registered', 'error')
+                return redirect(url_for('auth.register'))
         
         # Create new user
         user = User(username=username, email=email)
@@ -385,12 +436,18 @@ def register():
         try:
             db.session.add(user)
             db.session.commit()
-            flash('Registration successful! Please login.', 'success')
-            return redirect(url_for('auth.login'))
+            if request.is_json:
+                return jsonify({'message': 'Registration successful! Please login.'})
+            else:
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('auth.login'))
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'error')
-            return redirect(url_for('auth.register'))
+            if request.is_json:
+                return jsonify({'error': 'Registration failed. Please try again.'}), 500
+            else:
+                flash('Registration failed. Please try again.', 'error')
+                return redirect(url_for('auth.register'))
     
     return render_template('register.html')
 
@@ -1271,16 +1328,16 @@ def analyze_recording():
         recording_data = recording_file.read()
         print(f"Recording data size: {len(recording_data)} bytes")
         
-        # Select fast mode vs high-accuracy
-        fast_mode = request.form.get('fast', os.getenv('FAST_MODE', '1')) in ['1', 'true', 'True']
+        # Select fast mode vs high-accuracy (default to high-accuracy unless explicitly fast)
+        fast_mode = request.form.get('fast', os.getenv('FAST_MODE', '0')) in ['1', 'true', 'True']
         if fast_mode:
             print("FAST_MODE enabled: using lightweight analysis")
             service = VideoAudioAnalysisService()
             if assessment_type == 'video-audio':
                 results = service.analyze_video_audio(recording_data, recording_data)
             else:
-                # Reuse audio path via combined API
-                results = service.analyze_video_audio(b"", recording_data)
+                # Properly use audio-only analysis path
+                results = service.analyze_audio_only(recording_data)
         else:
             print("Using high-accuracy models for analysis...")
             if assessment_type == 'video-audio':

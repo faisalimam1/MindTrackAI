@@ -176,22 +176,6 @@
                 Video/Audio Mental Health Assessment
             </h1>
             
-            <!-- Privacy Notice -->
-            <div class="privacy-notice">
-                <h6><i class="fas fa-shield-alt me-2"></i>Privacy & Security</h6>
-                <p class="mb-0">Your video and audio data is processed locally and securely. No recordings are permanently stored. All analysis is confidential and used only for your mental health assessment.</p>
-            </div>
-            
-            <!-- High-Accuracy Model Info -->
-            <div class="alert alert-info" id="modelInfoPanel" style="display: none;">
-                <h6><i class="fas fa-brain me-2"></i>High-Accuracy AI Models</h6>
-                <div id="modelInfoContent">
-                    <div class="text-center">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p class="mb-0">Loading model information...</p>
-                    </div>
-                </div>
-            </div>
             
             <!-- Assessment Mode Selection -->
             <div class="row mb-4" id="modeSelection">
@@ -254,6 +238,15 @@
                     <canvas id="visualizerCanvas" style="display: none; width: 100%; height: 100%;"></canvas>
                 </div>
                 
+                <!-- Live Transcription Display -->
+                <div class="transcription-section" style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin: 15px 0;">
+                    <h6 style="margin-bottom: 10px;"><i class="fas fa-closed-captioning me-2"></i>Live Transcription</h6>
+                    <div id="transcriptionDisplay" style="min-height: 60px; background: rgba(0,0,0,0.2); border-radius: 5px; padding: 10px; font-family: monospace; font-size: 14px; color: #fff;">
+                        <div id="transcriptionText" style="margin-bottom: 5px;">Start speaking to see live transcription...</div>
+                        <div id="transcriptionStatus" style="font-size: 12px; opacity: 0.7;">Status: Ready</div>
+                    </div>
+                </div>
+                
                 <!-- Progress Bar -->
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
@@ -261,6 +254,21 @@
                 
                 <!-- Timer -->
                 <div class="timer" id="timer">60s</div>
+
+                <!-- Options -->
+                <div class="mt-2" id="optionsRow">
+                    <label class="form-check-label">
+                        <input class="form-check-input me-2" type="checkbox" id="highAccuracyToggle" checked> High accuracy (slower)
+                    </label>
+                    <div class="ms-4 d-inline-block">
+                        <label class="me-2">Duration</label>
+                        <select id="durationSelect" class="form-select d-inline-block" style="width: auto; display: inline-block;">
+                            <option value="20">20s</option>
+                            <option value="30">30s</option>
+                            <option value="60" selected>60s</option>
+                        </select>
+                    </div>
+                </div>
                 
                 <!-- Recording Controls -->
                 <div class="recording-controls">
@@ -381,59 +389,95 @@
                 this.selectedMode = null;
                 this.isRecording = false;
                 this.recordingTimer = null;
-                this.timeRemaining = 20; // shortened for faster turnaround
+                this.totalDurationSec = 60; // default duration
+                this.timeRemaining = this.totalDurationSec;
                 this.mediaRecorder = null;
                 this.recordedChunks = [];
                 this.stream = null;
                 this.modelInfo = null;
                 
-                this.initializeEventListeners();
-                this.loadModelInfo();
-            }
-            
-            async loadModelInfo() {
-                try {
-                    const response = await fetch('/assessment/api/model-info');
-                    const modelInfo = await response.json();
-                    this.modelInfo = modelInfo;
-                    this.displayModelInfo(modelInfo);
-                } catch (error) {
-                    console.error('Error loading model info:', error);
-                    this.hideModelInfo();
-                }
-            }
-            
-            displayModelInfo(modelInfo) {
-                const panel = document.getElementById('modelInfoPanel');
-                const content = document.getElementById('modelInfoContent');
+                // Speech recognition for live transcription
+                this.recognition = null;
+                this.transcriptionText = '';
+                this.isTranscribing = false;
                 
-                if (modelInfo.high_accuracy_available) {
-                    panel.style.display = 'block';
-                    content.innerHTML = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Audio Model:</strong> ${modelInfo.models.audio.primary}</p>
-                                <p class="mb-1"><strong>Audio Accuracy:</strong> ${modelInfo.models.audio.accuracy}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Video Model:</strong> ${modelInfo.models.video.primary}</p>
-                                <p class="mb-1"><strong>Video Accuracy:</strong> ${modelInfo.models.video.accuracy}</p>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <i class="fas fa-check-circle me-1"></i>
-                                Using state-of-the-art AI models for ${modelInfo.models.combined.accuracy} combined accuracy
-                            </small>
-                        </div>
-                    `;
+                this.initializeEventListeners();
+                this.initializeSpeechRecognition();
+            }
+            
+            
+            initializeSpeechRecognition() {
+                // Check if browser supports speech recognition
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    this.recognition = new SpeechRecognition();
+                    
+                    this.recognition.continuous = true;
+                    this.recognition.interimResults = true;
+                    this.recognition.lang = 'en-US';
+                    
+                    this.recognition.onstart = () => {
+                        this.isTranscribing = true;
+                        this.updateTranscriptionStatus('Listening...');
+                    };
+                    
+                    this.recognition.onresult = (event) => {
+                        let interimTranscript = '';
+                        let finalTranscript = '';
+                        
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            const transcript = event.results[i][0].transcript;
+                            if (event.results[i].isFinal) {
+                                finalTranscript += transcript;
+                            } else {
+                                interimTranscript += transcript;
+                            }
+                        }
+                        
+                        this.transcriptionText = finalTranscript;
+                        this.updateTranscriptionDisplay(finalTranscript, interimTranscript);
+                    };
+                    
+                    this.recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        this.updateTranscriptionStatus(`Error: ${event.error}`);
+                    };
+                    
+                    this.recognition.onend = () => {
+                        this.isTranscribing = false;
+                        this.updateTranscriptionStatus('Stopped');
+                    };
                 } else {
-                    this.hideModelInfo();
+                    console.warn('Speech recognition not supported in this browser');
+                    this.updateTranscriptionStatus('Speech recognition not supported');
                 }
             }
             
-            hideModelInfo() {
-                document.getElementById('modelInfoPanel').style.display = 'none';
+            updateTranscriptionDisplay(final, interim) {
+                const transcriptionText = document.getElementById('transcriptionText');
+                const displayText = final + (interim ? `<span style="opacity: 0.6;">${interim}</span>` : '');
+                transcriptionText.innerHTML = displayText || 'No speech detected...';
+            }
+            
+            updateTranscriptionStatus(status) {
+                const statusElement = document.getElementById('transcriptionStatus');
+                statusElement.textContent = `Status: ${status}`;
+            }
+            
+            startTranscription() {
+                if (this.recognition && !this.isTranscribing) {
+                    try {
+                        this.recognition.start();
+                    } catch (error) {
+                        console.error('Error starting speech recognition:', error);
+                    }
+                }
+            }
+            
+            stopTranscription() {
+                if (this.recognition && this.isTranscribing) {
+                    this.recognition.stop();
+                }
             }
             
             initializeEventListeners() {
@@ -464,9 +508,25 @@
                 document.getElementById('saveResultsBtn').addEventListener('click', () => {
                     this.saveResults();
                 });
+
+                // Duration selector
+                const durationSelect = document.getElementById('durationSelect');
+                if (durationSelect) {
+                    durationSelect.addEventListener('change', (e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(v) && v > 0) {
+                            this.totalDurationSec = v;
+                            if (!this.isRecording) {
+                                this.timeRemaining = v;
+                                document.getElementById('timer').textContent = `${v}s`;
+                                document.getElementById('progressFill').style.width = '0%';
+                            }
+                        }
+                    });
+                }
             }
             
-            selectMode(mode) {
+            async selectMode(mode) {
                 this.selectedMode = mode;
                 
                 // Update UI
@@ -475,24 +535,24 @@
                 });
                 document.querySelector(`[data-mode="${mode}"]`).classList.add('selected');
                 
-                // Show recording section
-                setTimeout(() => {
-                    this.showRecordingSection();
-                }, 500);
+                // Show recording section immediately and prewarm media
+                this.showRecordingSection();
+                this.prewarmMedia();
             }
             
             showRecordingSection() {
                 document.getElementById('modeSelection').style.display = 'none';
                 document.getElementById('recordingSection').style.display = 'block';
+                document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
                 
                 if (this.selectedMode === 'video-audio') {
                     document.getElementById('videoPreview').style.display = 'block';
                     document.getElementById('recordingTitle').textContent = 'Video + Audio Assessment';
-                    document.getElementById('recordingInstructions').textContent = 'Position yourself in front of the camera and speak naturally for 60 seconds about how you\'re feeling today.';
+                    document.getElementById('recordingInstructions').textContent = `Position yourself in front of the camera and speak naturally for ${this.totalDurationSec} seconds about how you're feeling today.`;
                 } else {
                     document.getElementById('videoPreview').style.display = 'none';
                     document.getElementById('recordingTitle').textContent = 'Audio-Only Assessment';
-                    document.getElementById('recordingInstructions').textContent = 'Speak naturally for 60 seconds about how you\'re feeling today. Your voice will be analyzed for emotional patterns.';
+                    document.getElementById('recordingInstructions').textContent = `Speak naturally for ${this.totalDurationSec} seconds about how you're feeling today. Your voice will be analyzed for emotional patterns.`;
                 }
             }
             
@@ -519,8 +579,16 @@
                         videoElement.style.display = 'block';
                     }
                     
-                    // Setup media recorder
-                    this.mediaRecorder = new MediaRecorder(this.stream);
+                    // Setup media recorder with correct MIME per mode
+                    const mimeType = (this.selectedMode === 'audio-only')
+                        ? 'audio/webm;codecs=opus'
+                        : 'video/webm;codecs=vp8,opus';
+                    try {
+                        this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
+                    } catch (e) {
+                        // Fallback without explicit mimeType if not supported
+                        this.mediaRecorder = new MediaRecorder(this.stream);
+                    }
                     this.recordedChunks = [];
                     
                     this.mediaRecorder.ondataavailable = (event) => {
@@ -536,7 +604,7 @@
                     // Start recording
                     this.mediaRecorder.start();
                     this.isRecording = true;
-                    this.timeRemaining = 20;
+                    this.timeRemaining = this.totalDurationSec;
                     
                     // Update UI
                     document.getElementById('recordBtn').style.display = 'none';
@@ -547,6 +615,9 @@
                     
                     // Start audio visualization
                     this.startAudioVisualization();
+                    
+                    // Start live transcription
+                    this.startTranscription();
                     
                 } catch (error) {
                     console.error('Error starting recording:', error);
@@ -569,6 +640,9 @@
                     document.getElementById('stopBtn').style.display = 'none';
                     document.getElementById('timer').textContent = 'Processing...';
                     
+                    // Stop transcription
+                    this.stopTranscription();
+                    
                     this.cleanupMedia();
                 }
             }
@@ -579,13 +653,30 @@
                     document.getElementById('timer').textContent = `${this.timeRemaining}s`;
                     
                     // Update progress bar
-                    const progress = ((60 - this.timeRemaining) / 60) * 100;
+                    const progress = ((this.totalDurationSec - this.timeRemaining) / this.totalDurationSec) * 100;
                     document.getElementById('progressFill').style.width = `${progress}%`;
                     
                     if (this.timeRemaining <= 0) {
                         this.stopRecording();
                     }
                 }, 1000);
+            }
+
+            async prewarmMedia() {
+                try {
+                    const constraints = { audio: { sampleRate: 16000, channelCount: 1 }, video: this.selectedMode === 'video-audio' };
+                    if (!this.stream) {
+                        this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    }
+                    if (this.selectedMode === 'video-audio') {
+                        const videoElement = document.getElementById('videoElement');
+                        videoElement.srcObject = this.stream;
+                        document.getElementById('videoPlaceholder').style.display = 'none';
+                        videoElement.style.display = 'block';
+                    }
+                } catch (e) {
+                    // Ignore prewarm errors; user can still start on record
+                }
             }
             
             startAudioVisualization() {
@@ -636,26 +727,44 @@
                 document.getElementById('recordingSection').style.display = 'none';
                 document.getElementById('resultsSection').style.display = 'block';
                 
-                // Create blob from recorded chunks
-                    const blob = new Blob(this.recordedChunks, { type: 'video/webm;codecs=vp8,opus' });
+                // Create blob from recorded chunks with correct MIME per mode
+                    const blobType = (this.selectedMode === 'audio-only')
+                        ? 'audio/webm;codecs=opus'
+                        : 'video/webm;codecs=vp8,opus';
+                    const blob = new Blob(this.recordedChunks, { type: blobType });
                 
                 // Send to backend for analysis
                 const formData = new FormData();
                 formData.append('recording', blob);
                 formData.append('assessment_type', this.selectedMode);
+                const highAcc = document.getElementById('highAccuracyToggle')?.checked;
+                formData.append('fast', highAcc ? '0' : '1');
                 
                 try {
+                    console.log('Sending analysis request...');
+                    console.log('FormData contents:', Array.from(formData.entries()));
+                    
                     const response = await fetch('/assessment/api/analyze-recording', {
                         method: 'POST',
                         body: formData
                     });
                     
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Server error:', response.status, errorText);
+                        throw new Error(`Server error: ${response.status} - ${errorText}`);
+                    }
+                    
                     const results = await response.json();
+                    console.log('Analysis results:', results);
                     this.displayResults(results);
                     
                 } catch (error) {
                     console.error('Error processing recording:', error);
-                    this.displayErrorResults();
+                    this.displayErrorResults(error.message);
                 }
             }
             
@@ -712,14 +821,12 @@
                 }
                 
                 // Display accuracy information
-                if (this.modelInfo && this.modelInfo.high_accuracy_available) {
-                    document.getElementById('modelAccuracy').textContent = this.modelInfo.models.combined.accuracy;
-                } else {
-                    document.getElementById('modelAccuracy').textContent = 'Standard';
-                }
+                document.getElementById('modelAccuracy').textContent = 'Standard';
             }
             
-            displayErrorResults() {
+            displayErrorResults(errorMessage = 'Analysis failed') {
+                console.log('Displaying error results:', errorMessage);
+                
                 document.getElementById('depressionScore').textContent = '--';
                 document.getElementById('depressionLevel').textContent = 'Unable to analyze';
                 
@@ -727,10 +834,22 @@
                 document.getElementById('confidenceLevel').textContent = 'Unable to analyze';
                 
                 document.getElementById('wellbeingScore').textContent = 'ERROR';
-                document.getElementById('wellbeingDescription').textContent = 'Analysis failed. Please try again.';
+                document.getElementById('wellbeingDescription').textContent = `Analysis failed: ${errorMessage}`;
                 
                 const recommendationsList = document.getElementById('recommendationsList');
-                recommendationsList.innerHTML = '<div class="recommendation-item"><i class="fas fa-exclamation-triangle me-2"></i>Please try the assessment again or contact support if the issue persists.</div>';
+                recommendationsList.innerHTML = `
+                    <div class="recommendation-item">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error: ${errorMessage}
+                    </div>
+                    <div class="recommendation-item">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Please try the assessment again or contact support if the issue persists.
+                    </div>
+                `;
+                
+                // Hide analysis info panel
+                document.getElementById('analysisInfo').style.display = 'none';
             }
             
             getWellbeingDescription(wellbeing) {
@@ -761,11 +880,11 @@
             resetAssessment() {
                 this.selectedMode = null;
                 this.isRecording = false;
-                this.timeRemaining = 60;
+                this.timeRemaining = this.totalDurationSec;
                 
                 // Reset UI
                 document.getElementById('progressFill').style.width = '0%';
-                document.getElementById('timer').textContent = '60s';
+                document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
                 
                 this.cleanupMedia();
                 this.showModeSelection();
