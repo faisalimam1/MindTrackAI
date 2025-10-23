@@ -166,7 +166,7 @@ $(document).ready(function() {
         submitBtn.prop('disabled', true);
         
         $.ajax({
-            url: '{{ url_for("journal.new_entry") }}',
+            url: '{{ url_for("journal.journal_new_entry") }}',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
@@ -175,7 +175,7 @@ $(document).ready(function() {
                 
                 // Redirect to journal index after a delay
                 setTimeout(function() {
-                    window.location.href = '{{ url_for("journal.index") }}';
+                    window.location.href = '{{ url_for("journal.journal_index") }}';
                 }, 2000);
             },
             error: function(xhr) {

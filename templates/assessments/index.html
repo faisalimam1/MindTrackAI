@@ -2,10 +2,125 @@
 
 {% block title %}Assessments{% endblock %}
 
+{% block extra_css %}
+<style>
+.crisis-alert {
+    background: #fff5f5;
+    border: 3px solid #dc3545;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    animation: urgentPulse 3s infinite;
+    display: none;
+}
+@keyframes urgentPulse {
+    0%, 100% { border-color: #dc3545; }
+    50% { border-color: #ff6b7a; }
+}
+.crisis-helpline {
+    background: white;
+    border: 2px solid #dc3545;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+}
+.helpline-btn {
+    background: #dc3545;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: bold;
+    margin: 5px 0;
+    transition: all 0.3s;
+}
+.helpline-btn:hover {
+    background: #c82333;
+    color: white;
+    transform: scale(1.05);
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="main-content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h2 text-dark mb-0"><i class="fas fa-list-check me-2"></i>Mental Health Assessments</h1>
+        <a href="/assessment/combined-results" class="btn btn-primary">
+            <i class="fas fa-chart-line me-2"></i>View Combined Results
+        </a>
+    </div>
+
+    <!-- CRISIS ALERT (Hidden by default, shown when crisis detected) -->
+    <div id="crisisAlertMain" class="crisis-alert">
+        <div class="d-flex align-items-center mb-4">
+            <i class="fas fa-exclamation-triangle fa-4x text-danger me-3" style="animation: shake 0.5s infinite;"></i>
+            <div>
+                <h3 class="text-danger fw-bold mb-2">⚠️ CRITICAL: IMMEDIATE HELP NEEDED</h3>
+                <p class="mb-0 lead">Your assessment indicates severe distress. Please contact professional help RIGHT NOW.</p>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="crisis-helpline">
+                    <h5 class="text-danger mb-3">
+                        <i class="fas fa-phone-volume me-2"></i>24/7 Emergency Helplines
+                    </h5>
+                    <div class="mb-3">
+                        <strong class="d-block mb-1">NIMHANS Crisis Helpline</strong>
+                        <a href="tel:08046110007" class="helpline-btn w-100 text-center">
+                            <i class="fas fa-phone me-2"></i>080-46110007
+                        </a>
+                        <small class="d-block text-muted mt-1">24/7 Mental Health Emergency</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong class="d-block mb-1">iCall Suicide Prevention</strong>
+                        <a href="tel:9152987821" class="helpline-btn w-100 text-center">
+                            <i class="fas fa-phone me-2"></i>9152987821
+                        </a>
+                        <small class="d-block text-muted mt-1">Mon-Sat, 8 AM - 10 PM</small>
+                    </div>
+                    <div>
+                        <strong class="d-block mb-1">Vandrevala Foundation</strong>
+                        <a href="tel:18602662345" class="helpline-btn w-100 text-center">
+                            <i class="fas fa-phone me-2"></i>1860-2662-345
+                        </a>
+                        <small class="d-block text-muted mt-1">24/7 Free & Confidential</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="crisis-helpline border-warning">
+                    <h5 class="text-warning mb-3">
+                        <i class="fas fa-shield-heart me-2"></i>IMMEDIATE ACTIONS
+                    </h5>
+                    <ol class="ps-3 mb-0">
+                        <li class="mb-2"><strong>Call one of the helplines NOW</strong></li>
+                        <li class="mb-2">Tell a trusted friend or family member immediately</li>
+                        <li class="mb-2">Go to the nearest hospital emergency room</li>
+                        <li class="mb-2">Remove any means of harm from your environment</li>
+                        <li class="mb-2">Stay with someone - do NOT be alone</li>
+                        <li><a href="/doctors" class="text-danger fw-bold">Find mental health professionals near you</a></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3 p-3 bg-white border border-info rounded">
+            <p class="mb-0">
+                <i class="fas fa-heart text-danger me-2"></i>
+                <strong>Your life has value.</strong> These feelings are temporary, even if they don't feel that way right now.
+                Professional help is available 24/7. You don't have to face this alone. People care about you and want to help.
+            </p>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -92,7 +207,21 @@ async function runAssessment(instrument, threadEl, stateVar) {
   });
   const data = await res.json();
   if (data.done) {
-    addBubble(threadEl, instrument==='phq9' ? `PHQ-9 finished. Score: ${data.score} (${data.severity}).` : `SCID-5-PD finished. Positives: ${data.positives}. Risk: ${data.risk_flag ? 'Yes' : 'No'}.`, 'bot');
+    const resultText = instrument==='phq9'
+      ? `PHQ-9 finished. Score: ${data.score}/27 (${data.severity}).`
+      : `SCID-5-PD finished. Positives: ${data.positives}/20. Risk: ${data.risk_flag ? 'Yes' : 'No'}.`;
+    addBubble(threadEl, resultText, 'bot');
+
+    // Show crisis alert if needed
+    if (data.crisis_detected) {
+      document.getElementById('crisisAlertMain').style.display = 'block';
+      setTimeout(() => {
+        document.getElementById('crisisAlertMain').scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 500);
+    }
     return;
   }
   const q = data.question;

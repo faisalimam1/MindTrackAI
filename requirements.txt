@@ -60,6 +60,11 @@ moviepy==1.0.3
 deepface==0.0.79
 fer==22.5.0
 
+# Advanced Facial Analysis
+mediapipe==0.10.9  # Facial landmarks, gaze tracking, pose estimation
+dlib==19.24.2  # Facial landmark detection (alternative)
+imutils==0.5.4  # Image processing utilities
+
 # Utilities
 requests==2.31.0
 python-multipart==0.0.6

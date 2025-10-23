@@ -179,6 +179,70 @@
     color: white;
     transform: scale(1.05);
 }
+/* LIVE TRANSCRIPTION STYLES */
+.live-transcription {
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    backdrop-filter: blur(10px);
+}
+.transcription-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-weight: 600;
+    font-size: 16px;
+}
+.transcription-status {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: normal;
+}
+.transcription-status i {
+    animation: blink 1.5s infinite;
+}
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+.transcription-content {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 80px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+.transcription-text {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+.transcription-footer {
+    margin-top: 10px;
+    text-align: center;
+    opacity: 0.8;
+}
+/* Scrollbar styling for transcription */
+.transcription-content::-webkit-scrollbar {
+    width: 6px;
+}
+.transcription-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.transcription-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+.transcription-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
 </style>
 {% endblock %}
 
@@ -321,6 +385,30 @@
 
             <div class="timer" id="timer">60s</div>
 
+            <!-- Live Transcription Display -->
+            <div class="live-transcription" id="liveTranscription" style="display: none;">
+                <div class="transcription-header">
+                    <i class="fas fa-comment-dots me-2"></i>
+                    <span>What you're saying...</span>
+                    <span class="transcription-status" id="transcriptionStatus">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #ff4757;"></i>
+                        <span class="ms-1">Listening</span>
+                    </span>
+                </div>
+                <div class="transcription-content" id="transcriptionContent">
+                    <p class="transcription-text" id="transcriptionText">
+                        <i class="fas fa-microphone-alt me-2 text-muted"></i>
+                        <span class="text-muted">Start speaking to see transcription...</span>
+                    </p>
+                </div>
+                <div class="transcription-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This helps you know what's being recorded
+                    </small>
+                </div>
+            </div>
+
             <div class="recording-controls">
                 <button class="record-btn record" id="recordBtn">
                     <i class="fas fa-play"></i>
@@ -377,7 +465,7 @@
                         <h5 class="mb-0"><i class="fas fa-quote-left me-2"></i>What I Heard</h5>
                     </div>
                     <div class="card-body">
-                        <p id="transcriptionText" class="mb-0 fst-italic"></p>
+                        <p id="resultsTranscriptionText" class="mb-0 fst-italic"></p>
                     </div>
                 </div>
             </div>
@@ -418,7 +506,102 @@ class VideoAudioAssessment {
         this.recordedChunks = [];
         this.stream = null;
         this.latestResults = null;  // Store latest assessment results for saving
+
+        // Speech recognition for live transcription
+        this.recognition = null;
+        this.transcriptionText = '';
+        this.initializeSpeechRecognition();
+
         this.initializeEventListeners();
+    }
+
+    initializeSpeechRecognition() {
+        // Check if browser supports Speech Recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+
+            this.recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    this.transcriptionText += finalTranscript;
+                }
+
+                // Update the display with interim + final text
+                this.updateTranscriptionDisplay(this.transcriptionText + interimTranscript);
+            };
+
+            this.recognition.onerror = (event) => {
+                console.warn('Speech recognition error:', event.error);
+                if (event.error !== 'no-speech') {
+                    this.updateTranscriptionDisplay('⚠️ Transcription paused. Keep speaking...');
+                }
+            };
+
+            this.recognition.onend = () => {
+                // Restart if still recording
+                if (this.isRecording && this.recognition) {
+                    try {
+                        this.recognition.start();
+                    } catch (e) {
+                        console.warn('Recognition restart failed:', e);
+                    }
+                }
+            };
+        } else {
+            console.warn('Speech Recognition not supported in this browser');
+        }
+    }
+
+    updateTranscriptionDisplay(text) {
+        const transcriptionText = document.getElementById('transcriptionText');
+        if (text && text.trim()) {
+            transcriptionText.innerHTML = text.trim();
+            // Auto-scroll to bottom
+            const transcriptionContent = document.getElementById('transcriptionContent');
+            transcriptionContent.scrollTop = transcriptionContent.scrollHeight;
+        }
+    }
+
+    startTranscription() {
+        if (this.recognition) {
+            try {
+                this.transcriptionText = '';
+                document.getElementById('liveTranscription').style.display = 'block';
+                this.updateTranscriptionDisplay('<i class="fas fa-microphone-alt me-2 text-muted"></i><span class="text-muted">Listening...</span>');
+                this.recognition.start();
+                console.log('Live transcription started');
+            } catch (e) {
+                console.warn('Could not start transcription:', e);
+            }
+        }
+    }
+
+    stopTranscription() {
+        if (this.recognition) {
+            try {
+                this.recognition.stop();
+                document.getElementById('liveTranscription').style.display = 'none';
+                console.log('Live transcription stopped');
+            } catch (e) {
+                console.warn('Could not stop transcription:', e);
+            }
+        }
     }
 
     initializeEventListeners() {
@@ -498,6 +681,10 @@ class VideoAudioAssessment {
 
             document.getElementById('recordBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'inline-block';
+
+            // Start live transcription
+            this.startTranscription();
+
             this.startTimer();
         } catch (error) {
             console.error('Error starting recording:', error);
@@ -510,6 +697,9 @@ class VideoAudioAssessment {
             this.mediaRecorder.stop();
             this.isRecording = false;
             if (this.recordingTimer) clearInterval(this.recordingTimer);
+
+            // Stop live transcription
+            this.stopTranscription();
 
             document.getElementById('recordBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'none';
@@ -595,15 +785,19 @@ class VideoAudioAssessment {
         document.getElementById('wellbeingScore').textContent = (results.overall_wellbeing || 'unknown').toUpperCase();
         document.getElementById('wellbeingDescription').textContent = this.getWellbeingDescription(results.overall_wellbeing);
 
-        // Display transcription
+        // Display transcription in results section
         const transcriptionSection = document.getElementById('transcriptionSection');
-        const transcriptionText = document.getElementById('transcriptionText');
+        const resultsTranscriptionText = document.getElementById('resultsTranscriptionText');
 
-        if (results.transcribed_text && results.transcribed_text.trim() !== '') {
-            transcriptionText.textContent = `"${results.transcribed_text}"`;
+        // Use either the backend transcribed_text or the live transcription we captured
+        const finalTranscript = results.transcribed_text || this.transcriptionText;
+
+        if (finalTranscript && finalTranscript.trim() !== '') {
+            resultsTranscriptionText.textContent = `"${finalTranscript.trim()}"`;
             transcriptionSection.style.display = 'block';
         } else {
-            transcriptionSection.style.display = 'none';
+            resultsTranscriptionText.textContent = 'No speech was detected during the recording.';
+            transcriptionSection.style.display = 'block';
         }
 
         // Display recommendations

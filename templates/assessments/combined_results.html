@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Combined Assessment Results{% endblock %}
+
+{% block extra_css %}
+<style>
+.assessment-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.composite-score {
+    font-size: 64px;
+    font-weight: bold;
+    text-align: center;
+    margin: 20px 0;
+}
+.progress-ring {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+    text-align: center;
+}
+.crisis-alert {
+    background: #fff5f5;
+    border: 3px solid #dc3545;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    animation: urgentPulse 3s infinite;
+}
+@keyframes urgentPulse {
+    0%, 100% { border-color: #dc3545; }
+    50% { border-color: #ff6b7a; }
+}
+.recommendation-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 4px solid #667eea;
+}
+.badge-lg {
+    font-size: 18px;
+    padding: 10px 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 text-dark mb-0">
+            <i class="fas fa-chart-line me-2"></i>Combined Assessment Results
+        </h1>
+        <a href="/assessments" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Assessments
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    {% if composite and composite.crisis_detected %}
+    <!-- CRISIS ALERT -->
+    <div class="crisis-alert">
+        <div class="d-flex align-items-center mb-4">
+            <i class="fas fa-exclamation-triangle fa-4x text-danger me-3" style="animation: shake 0.5s infinite;"></i>
+            <div>
+                <h3 class="text-danger fw-bold mb-2">⚠️ CRITICAL: IMMEDIATE HELP NEEDED</h3>
+                <p class="mb-0 lead">Your combined assessment indicates severe distress. Please contact professional help RIGHT NOW.</p>
+            </div>
+        </div>
+        <div class="text-center">
+            <a href="tel:08046110007" class="btn btn-danger btn-lg me-2">
+                <i class="fas fa-phone me-2"></i>NIMHANS: 080-46110007
+            </a>
+            <a href="tel:9152987821" class="btn btn-danger btn-lg me-2">
+                <i class="fas fa-phone me-2"></i>iCall: 9152987821
+            </a>
+            <a href="tel:18602662345" class="btn btn-danger btn-lg">
+                <i class="fas fa-phone me-2"></i>Vandrevala: 1860-2662-345
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if composite %}
+    <!-- COMPOSITE RESULTS -->
+    <div class="assessment-card">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-brain me-2"></i>Composite Mental Health Analysis
+        </h3>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5>Depression Indicator</h5>
+                    <div class="composite-score text-{{ composite.depression_color }}">
+                        {{ (composite.depression_score * 100) | round | int }}%
+                    </div>
+                    <span class="badge badge-lg bg-{{ composite.depression_color }}">
+                        {{ composite.depression_level | upper }}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5>Confidence Level</h5>
+                    <div class="composite-score text-primary">
+                        {{ (composite.confidence_score * 100) | round | int }}%
+                    </div>
+                    <span class="badge badge-lg bg-primary">
+                        {% if composite.confidence_score >= 0.7 %}HIGH
+                        {% elif composite.confidence_score >= 0.5 %}MODERATE
+                        {% else %}LOW{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5>Overall Wellbeing</h5>
+                    <div class="composite-score text-info">
+                        {{ (composite.wellbeing_score * 100) | round | int }}%
+                    </div>
+                    <span class="badge badge-lg
+                        {% if composite.wellbeing_score >= 0.7 %}bg-success
+                        {% elif composite.wellbeing_score >= 0.5 %}bg-warning
+                        {% else %}bg-danger{% endif %}">
+                        {% if composite.wellbeing_score >= 0.7 %}GOOD
+                        {% elif composite.wellbeing_score >= 0.5 %}MODERATE
+                        {% else %}CONCERNING{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-{{ composite.depression_color }} text-center">
+                    <h5 class="mb-2">
+                        <i class="fas fa-info-circle me-2"></i>Risk Level: {{ composite.risk_level | upper }}
+                    </h5>
+                    <p class="mb-0">
+                        Based on {{ composite.assessments_used }} out of {{ composite.total_assessments }} assessments
+                        ({{ (composite.completeness_score * 100) | round | int }}% complete)
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="assessment-card">
+        <h3 class="mb-4">
+            <i class="fas fa-lightbulb me-2"></i>Personalized Recommendations
+        </h3>
+        {% for rec in composite.recommendations %}
+        <div class="recommendation-item">
+            {{ rec }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- INDIVIDUAL ASSESSMENT RESULTS -->
+    <div class="row">
+        <!-- Audio/Video Assessment -->
+        <div class="col-md-4">
+            <div class="assessment-card h-100">
+                <h4 class="text-center mb-3">
+                    <i class="fas fa-video me-2"></i>Audio/Video
+                </h4>
+                {% if audio_video %}
+                <div class="metric-card">
+                    <h6>Depression Score</h6>
+                    <div style="font-size: 32px;">{{ (audio_video.depression_score * 100) | round | int }}%</div>
+                    <small>{{ audio_video.depression_level | upper }}</small>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #2ed573 0%, #26de81 100%);">
+                    <h6>Confidence</h6>
+                    <div style="font-size: 32px;">{{ (audio_video.confidence_score * 100) | round | int }}%</div>
+                    <small>{{ audio_video.confidence_level | upper }}</small>
+                </div>
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        {{ audio_video.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-video fa-3x mb-3"></i>
+                    <p>No audio/video assessment completed yet</p>
+                    <a href="/assessment/video-audio" class="btn btn-primary btn-sm">
+                        Start Assessment
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- PHQ-9 Assessment -->
+        <div class="col-md-4">
+            <div class="assessment-card h-100">
+                <h4 class="text-center mb-3">
+                    <i class="fas fa-clipboard-list me-2"></i>PHQ-9
+                </h4>
+                {% if phq9 %}
+                <div class="metric-card">
+                    <h6>PHQ-9 Score</h6>
+                    <div style="font-size: 32px;">{{ phq9.score }}/27</div>
+                    <small>{{ phq9.severity | upper }}</small>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge
+                        {% if phq9.score >= 15 %}bg-danger
+                        {% elif phq9.score >= 10 %}bg-warning
+                        {% elif phq9.score >= 5 %}bg-info
+                        {% else %}bg-success{% endif %} p-2">
+                        {% if phq9.score >= 20 %}Severe Depression
+                        {% elif phq9.score >= 15 %}Moderately Severe
+                        {% elif phq9.score >= 10 %}Moderate
+                        {% elif phq9.score >= 5 %}Mild
+                        {% else %}Minimal{% endif %}
+                    </span>
+                </div>
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        {{ phq9.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                    <p>No PHQ-9 assessment completed yet</p>
+                    <a href="/assessments" class="btn btn-primary btn-sm">
+                        Start PHQ-9
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SCID-5-PD Assessment -->
+        <div class="col-md-4">
+            <div class="assessment-card h-100">
+                <h4 class="text-center mb-3">
+                    <i class="fas fa-user-check me-2"></i>SCID-5-PD
+                </h4>
+                {% if scid %}
+                <div class="metric-card">
+                    <h6>Positive Indicators</h6>
+                    <div style="font-size: 32px;">{{ scid.positives }}/20</div>
+                    <small>RISK: {% if scid.risk_flag %}YES{% else %}NO{% endif %}</small>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge {% if scid.risk_flag %}bg-danger{% else %}bg-success{% endif %} p-2">
+                        {% if scid.positives >= 10 %}High Risk
+                        {% elif scid.positives >= 5 %}Moderate Risk
+                        {% else %}Low Risk{% endif %}
+                    </span>
+                </div>
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        {{ scid.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-user-check fa-3x mb-3"></i>
+                    <p>No SCID-5-PD assessment completed yet</p>
+                    <a href="/assessments" class="btn btn-primary btn-sm">
+                        Start SCID-5-PD
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="/assessments" class="btn btn-primary btn-lg">
+            <i class="fas fa-redo me-2"></i>Take New Assessments
+        </a>
+        <a href="/dashboard" class="btn btn-outline-secondary btn-lg ms-2">
+            <i class="fas fa-home me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<style>
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+</style>
+{% endblock %}
