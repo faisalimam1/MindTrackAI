@@ -22,7 +22,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Import all models to ensure they're registered
-from models import User, JournalEntry, MoodEntry, Task, Goal, AssessmentSession, ChatMessage
 
 def init_database():
     """Initialize the database with all tables."""

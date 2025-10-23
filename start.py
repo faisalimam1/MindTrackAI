@@ -3,10 +3,9 @@
 AI Powered Mental Health Prediction and Personalized Assistance System Startup Script
 """
 
-import os
 import sys
 from app import app, db
-from models import User, JournalEntry, MoodEntry, Task, Goal
+from models import User
 from sqlalchemy import text
 
 def init_database():
@@ -37,7 +36,7 @@ def init_database():
             print("Database initialization complete!")
             
     except Exception as e:
-        print(f"❌ Error initializing database: {e}")
+        print(f"[ERROR] Error initializing database: {e}")
         return False
     
     return True
@@ -52,7 +51,7 @@ def check_dependencies():
             db.session.execute(text('SELECT 1'))
             print("SQLite database connection successful")
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"[ERROR] Database connection failed: {e}")
         return False
     
     return True
@@ -64,12 +63,12 @@ def main():
     
     # Check dependencies
     if not check_dependencies():
-        print("\n❌ Dependency check failed. Please fix the issues above.")
+        print("\n[ERROR] Dependency check failed. Please fix the issues above.")
         sys.exit(1)
-    
+
     # Initialize database
     if not init_database():
-        print("\n❌ Database initialization failed.")
+        print("\n[ERROR] Database initialization failed.")
         sys.exit(1)
     
     print("\nStarting AI Powered Mental Health Prediction and Personalized Assistance System...")
@@ -84,7 +83,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\nAI Powered Mental Health Prediction and Personalized Assistance System stopped. Goodbye!")
     except Exception as e:
-        print(f"\n❌ Error starting application: {e}")
+        print(f"\n[ERROR] Error starting application: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':

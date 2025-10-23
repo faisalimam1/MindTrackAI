@@ -2,7 +2,7 @@ from extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
-# Using SQLite instead of PostgreSQL
+from sqlalchemy.dialects.postgresql import JSON
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -37,14 +37,14 @@ class JournalEntry(db.Model):
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     mood_score = db.Column(db.Integer)  # 1-10 scale
-    tags = db.Column(db.Text)  # Store as JSON string for SQLite
+    tags = db.Column(JSON)  # Changed to JSON for PostgreSQL
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # AI Analysis fields
     sentiment_score = db.Column(db.Float)
-    emotion_labels = db.Column(db.Text)  # Store as JSON string for SQLite
-    key_topics = db.Column(db.Text)  # Store as JSON string for SQLite
+    emotion_labels = db.Column(JSON)  # Changed to JSON for PostgreSQL
+    key_topics = db.Column(JSON)  # Changed to JSON for PostgreSQL
     ai_insights = db.Column(db.Text)
 
 class MoodEntry(db.Model):
@@ -55,7 +55,7 @@ class MoodEntry(db.Model):
     mood_score = db.Column(db.Integer, nullable=False)  # 1-10 scale
     mood_label = db.Column(db.String(50))  # e.g., "Happy", "Sad", "Anxious"
     notes = db.Column(db.Text)
-    activities = db.Column(db.Text)  # Store as JSON string for SQLite
+    activities = db.Column(JSON)  # Changed to JSON for PostgreSQL
     sleep_hours = db.Column(db.Float)
     exercise_minutes = db.Column(db.Integer)
     social_interactions = db.Column(db.Integer)  # Number of social interactions
@@ -103,9 +103,43 @@ class AssessmentSession(db.Model):
     # Results (SCID-5-PD)
     positives = db.Column(db.Integer)
     risk_flag = db.Column(db.Boolean)
-    # Raw payloads (JSON as text for SQLite)
-    answers_json = db.Column(db.Text)
-    state_json = db.Column(db.Text)
+    # Raw payloads (JSON for PostgreSQL)
+    answers_json = db.Column(JSON)  # Changed to JSON for PostgreSQL
+    state_json = db.Column(JSON)  # Changed to JSON for PostgreSQL
+
+
+class AudioVideoAssessment(db.Model):
+    __tablename__ = 'audio_video_assessments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    assessment_type = db.Column(db.String(20), nullable=False)  # 'audio-only' or 'video-audio'
+
+    # Scores and Results
+    depression_score = db.Column(db.Float)  # 0.0 to 1.0
+    depression_level = db.Column(db.String(20))  # minimal, mild, moderate, severe, critical
+    confidence_score = db.Column(db.Float)  # 0.0 to 1.0
+    confidence_level = db.Column(db.String(20))  # low, moderate, high
+    overall_wellbeing = db.Column(db.String(20))  # excellent, good, moderate, concerning, serious, critical
+
+    # Crisis Detection
+    crisis_detected = db.Column(db.Boolean, default=False)
+    crisis_indicators = db.Column(JSON)  # List of detected crisis keywords/indicators
+    risk_level = db.Column(db.String(20))  # low, mild, moderate, high, critical
+
+    # Transcription
+    transcribed_text = db.Column(db.Text)
+    transcription_successful = db.Column(db.Boolean, default=False)
+
+    # Voice Features (stored as JSON)
+    voice_features = db.Column(JSON)  # pitch, energy, speaking rate, etc.
+
+    # Recommendations
+    recommendations = db.Column(JSON)  # Array of recommendation objects
+
+    # Metadata
+    audio_duration = db.Column(db.Float)  # Duration in seconds
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ChatMessage(db.Model):

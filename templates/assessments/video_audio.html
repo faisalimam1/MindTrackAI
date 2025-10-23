@@ -1,929 +1,767 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video/Audio Assessment - MindTrackAI</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .assessment-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .recording-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-            padding: 30px;
-            color: white;
-            margin-bottom: 30px;
-        }
-        
-        .video-preview {
-            width: 100%;
-            max-width: 400px;
-            height: 300px;
-            background: #000;
-            border-radius: 10px;
-            margin: 20px auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        
-        .audio-visualizer {
-            width: 100%;
-            height: 100px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            margin: 20px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .recording-controls {
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .record-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: none;
-            font-size: 24px;
-            margin: 0 15px;
-            transition: all 0.3s ease;
-        }
-        
-        .record-btn.record {
-            background: #ff4757;
-            color: white;
-        }
-        
-        .record-btn.stop {
-            background: #2f3542;
-            color: white;
-        }
-        
-        .record-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .timer {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 15px 0;
-        }
-        
-        .assessment-mode {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .assessment-mode:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-        }
-        
-        .assessment-mode.selected {
-            border: 3px solid #667eea;
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-        }
-        
-        .mode-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            color: #667eea;
-        }
-        
-        .progress-bar {
-            height: 8px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.3);
-            overflow: hidden;
-            margin: 15px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: #2ed573;
-            width: 0%;
-            transition: width 0.1s ease;
-        }
-        
-        .results-section {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-top: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .score-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 15px 0;
-            text-align: center;
-        }
-        
-        .score-value {
-            font-size: 36px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        
-        .recommendations {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .recommendation-item {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            border-left: 4px solid #667eea;
-        }
-        
-        .privacy-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="assessment-container">
-            <h1 class="text-center mb-4">
-                <i class="fas fa-video me-2"></i>
-                Video/Audio Mental Health Assessment
-            </h1>
-            
-            
-            <!-- Assessment Mode Selection -->
-            <div class="row mb-4" id="modeSelection">
-                <div class="col-md-6">
-                    <div class="assessment-mode" data-mode="video-audio">
-                        <div class="text-center">
-                            <div class="mode-icon">
-                                <i class="fas fa-video"></i>
-                            </div>
-                            <h4>Video + Audio Assessment</h4>
-                            <p class="text-muted">Complete analysis using facial expressions and voice patterns. Most comprehensive results.</p>
-                            <ul class="list-unstyled mt-3">
-                                <li><i class="fas fa-check text-success me-2"></i>Facial emotion detection</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Voice pattern analysis</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Speech sentiment analysis</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="assessment-mode" data-mode="audio-only">
-                        <div class="text-center">
-                            <div class="mode-icon">
-                                <i class="fas fa-microphone"></i>
-                            </div>
-                            <h4>Audio-Only Assessment</h4>
-                            <p class="text-muted">Privacy-focused analysis using only voice and speech patterns. No video recording.</p>
-                            <ul class="list-unstyled mt-3">
-                                <li><i class="fas fa-check text-success me-2"></i>Voice pattern analysis</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Speech sentiment analysis</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Enhanced privacy</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Recording Section -->
-            <div class="recording-section" id="recordingSection" style="display: none;">
-                <div class="text-center">
-                    <h3 id="recordingTitle">Ready to Begin Assessment</h3>
-                    <p id="recordingInstructions">Click the record button and speak naturally for 60 seconds. Share how you're feeling today.</p>
-                </div>
-                
-                <!-- Video Preview (only for video mode) -->
-                <div class="video-preview" id="videoPreview" style="display: none;">
-                    <video id="videoElement" autoplay muted style="width: 100%; height: 100%; border-radius: 10px;"></video>
-                    <div id="videoPlaceholder">
-                        <i class="fas fa-video" style="font-size: 48px; opacity: 0.5;"></i>
-                        <p style="margin-top: 10px; opacity: 0.7;">Camera will activate when recording starts</p>
-                    </div>
-                </div>
-                
-                <!-- Audio Visualizer -->
-                <div class="audio-visualizer" id="audioVisualizer">
-                    <div id="audioPlaceholder">
-                        <i class="fas fa-microphone" style="font-size: 36px; opacity: 0.5;"></i>
-                        <p style="margin-top: 10px; opacity: 0.7;">Audio levels will appear here</p>
-                    </div>
-                    <canvas id="visualizerCanvas" style="display: none; width: 100%; height: 100%;"></canvas>
-                </div>
-                
-                <!-- Live Transcription Display -->
-                <div class="transcription-section" style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin: 15px 0;">
-                    <h6 style="margin-bottom: 10px;"><i class="fas fa-closed-captioning me-2"></i>Live Transcription</h6>
-                    <div id="transcriptionDisplay" style="min-height: 60px; background: rgba(0,0,0,0.2); border-radius: 5px; padding: 10px; font-family: monospace; font-size: 14px; color: #fff;">
-                        <div id="transcriptionText" style="margin-bottom: 5px;">Start speaking to see live transcription...</div>
-                        <div id="transcriptionStatus" style="font-size: 12px; opacity: 0.7;">Status: Ready</div>
-                    </div>
-                </div>
-                
-                <!-- Progress Bar -->
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                
-                <!-- Timer -->
-                <div class="timer" id="timer">60s</div>
+{% extends "base.html" %}
 
-                <!-- Options -->
-                <div class="mt-2" id="optionsRow">
-                    <label class="form-check-label">
-                        <input class="form-check-input me-2" type="checkbox" id="highAccuracyToggle" checked> High accuracy (slower)
-                    </label>
-                    <div class="ms-4 d-inline-block">
-                        <label class="me-2">Duration</label>
-                        <select id="durationSelect" class="form-select d-inline-block" style="width: auto; display: inline-block;">
-                            <option value="20">20s</option>
-                            <option value="30">30s</option>
-                            <option value="60" selected>60s</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Recording Controls -->
-                <div class="recording-controls">
-                    <button class="record-btn record" id="recordBtn">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    <button class="record-btn stop" id="stopBtn" style="display: none;">
-                        <i class="fas fa-stop"></i>
-                    </button>
-                </div>
-                
-                <div class="text-center mt-3">
-                    <button class="btn btn-outline-light" id="backBtn">
-                        <i class="fas fa-arrow-left me-2"></i>Change Assessment Mode
-                    </button>
+{% block title %}Video/Audio Assessment - MindTrackAI{% endblock %}
+
+{% block extra_css %}
+<style>
+.assessment-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.recording-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 30px;
+    color: white;
+    margin-bottom: 30px;
+}
+.video-preview {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    background: #000;
+    border-radius: 10px;
+    margin: 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.audio-visualizer {
+    width: 100%;
+    height: 100px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.recording-controls {
+    text-align: center;
+    margin: 20px 0;
+}
+.record-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: none;
+    font-size: 24px;
+    margin: 0 15px;
+    transition: all 0.3s ease;
+}
+.record-btn.record {
+    background: #ff4757;
+    color: white;
+}
+.record-btn.stop {
+    background: #2f3542;
+    color: white;
+}
+.record-btn:hover {
+    transform: scale(1.1);
+}
+.timer {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 15px 0;
+}
+.assessment-mode {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.assessment-mode:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+.assessment-mode.selected {
+    border: 3px solid #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+}
+.mode-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+.progress-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.3);
+    overflow: hidden;
+    margin: 15px 0;
+}
+.progress-fill {
+    height: 100%;
+    background: #2ed573;
+    width: 0%;
+    transition: width 0.1s ease;
+}
+.results-section {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-top: 30px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.score-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    text-align: center;
+}
+.score-card.critical {
+    background: linear-gradient(135deg, #ff4757 0%, #dc143c 100%);
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+.score-value {
+    font-size: 36px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+.recommendations {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+.recommendation-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 4px solid #667eea;
+}
+/* CRISIS ALERT STYLES */
+.crisis-alert {
+    background: #fff5f5;
+    border: 3px solid #dc3545;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    animation: urgentPulse 3s infinite;
+}
+@keyframes urgentPulse {
+    0%, 100% { border-color: #dc3545; }
+    50% { border-color: #ff6b7a; }
+}
+.crisis-helpline {
+    background: white;
+    border: 2px solid #dc3545;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+}
+.helpline-btn {
+    background: #dc3545;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: bold;
+    margin: 5px 0;
+    transition: all 0.3s;
+}
+.helpline-btn:hover {
+    background: #c82333;
+    color: white;
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="assessment-container">
+        <h1 class="text-center mb-4">
+            <i class="fas fa-video me-2"></i>
+            Video/Audio Mental Health Assessment
+        </h1>
+
+        <!-- CRISIS ALERT (Hidden by default, shown when crisis detected) -->
+        <div id="crisisAlertMain" class="crisis-alert" style="display: none;">
+            <div class="d-flex align-items-center mb-4">
+                <i class="fas fa-exclamation-triangle fa-4x text-danger me-3" style="animation: shake 0.5s infinite;"></i>
+                <div>
+                    <h3 class="text-danger fw-bold mb-2">⚠️ CRITICAL: IMMEDIATE HELP NEEDED</h3>
+                    <p class="mb-0 lead">Your assessment indicates severe distress. Please contact professional help RIGHT NOW.</p>
                 </div>
             </div>
             
-            <!-- Results Section -->
-            <div class="results-section" id="resultsSection" style="display: none;">
-                <h3 class="text-center mb-4">
-                    <i class="fas fa-chart-line me-2"></i>
-                    Assessment Results
-                </h3>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="score-card">
-                            <h5>Depression Indicators</h5>
-                            <div class="score-value" id="depressionScore">--</div>
-                            <p id="depressionLevel">Analyzing...</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="score-card">
-                            <h5>Confidence Level</h5>
-                            <div class="score-value" id="confidenceScore">--</div>
-                            <p id="confidenceLevel">Analyzing...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="score-card">
-                            <h5>Overall Wellbeing</h5>
-                            <div class="score-value" id="wellbeingScore">--</div>
-                            <p id="wellbeingDescription">Analyzing...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- High-Accuracy Analysis Info -->
-                <div class="row mt-3" id="analysisInfo" style="display: none;">
-                    <div class="col-12">
-                        <div class="alert alert-success">
-                            <h6><i class="fas fa-robot me-2"></i>High-Accuracy Analysis Details</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Analysis Quality:</strong> <span id="analysisQuality">--</span></p>
-                                    <p class="mb-1"><strong>Model Used:</strong> <span id="modelUsed">--</span></p>
-                                    <p class="mb-1"><strong>Confidence:</strong> <span id="analysisConfidence">--</span></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong>Audio Model:</strong> <span id="audioModel">--</span></p>
-                                    <p class="mb-1"><strong>Video Model:</strong> <span id="videoModel">--</span></p>
-                                    <p class="mb-1"><strong>Accuracy:</strong> <span id="modelAccuracy">--</span></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Recommendations -->
-                <div class="recommendations">
-                    <h5><i class="fas fa-lightbulb me-2"></i>Personalized Recommendations</h5>
-                    <div id="recommendationsList">
-                        <div class="text-center">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p>Generating personalized recommendations...</p>
-                        </div>
-                    </div>
-                    <div id="escalationPanel" class="mt-3" style="display: none;">
-                        <div class="alert alert-danger">
-                            <div class="d-flex align-items-start">
-                                <i class="fas fa-triangle-exclamation me-2 mt-1"></i>
-                                <div>
-                                    <strong>High concern detected.</strong> Please consider immediate support:
-                                    <ul class="mb-0 mt-2">
-                                        <li>NIMHANS Helpline: <strong>080-46110007</strong></li>
-                                        <li>Indian Suicide Prevention: <strong>9152987821</strong></li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <a href="/doctors/" class="btn btn-danger btn-sm mt-3">
-                                <i class="fas fa-user-doctor me-1"></i> See Mental Health Professionals
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="crisis-helpline">
+                        <h5 class="text-danger mb-3">
+                            <i class="fas fa-phone-volume me-2"></i>24/7 Emergency Helplines
+                        </h5>
+                        <div class="mb-3">
+                            <strong class="d-block mb-1">NIMHANS Crisis Helpline</strong>
+                            <a href="tel:08046110007" class="helpline-btn w-100 text-center">
+                                <i class="fas fa-phone me-2"></i>080-46110007
                             </a>
+                            <small class="d-block text-muted mt-1">24/7 Mental Health Emergency</small>
+                        </div>
+                        <div class="mb-3">
+                            <strong class="d-block mb-1">iCall Suicide Prevention</strong>
+                            <a href="tel:9152987821" class="helpline-btn w-100 text-center">
+                                <i class="fas fa-phone me-2"></i>9152987821
+                            </a>
+                            <small class="d-block text-muted mt-1">Mon-Sat, 8 AM - 10 PM</small>
+                        </div>
+                        <div>
+                            <strong class="d-block mb-1">Vandrevala Foundation</strong>
+                            <a href="tel:18602662345" class="helpline-btn w-100 text-center">
+                                <i class="fas fa-phone me-2"></i>1860-2662-345
+                            </a>
+                            <small class="d-block text-muted mt-1">24/7 Free & Confidential</small>
                         </div>
                     </div>
                 </div>
                 
-                <div class="text-center mt-4">
-                    <button class="btn btn-primary btn-lg" id="newAssessmentBtn">
-                        <i class="fas fa-redo me-2"></i>Take New Assessment
-                    </button>
-                    <button class="btn btn-outline-primary btn-lg ms-3" id="saveResultsBtn">
-                        <i class="fas fa-save me-2"></i>Save Results
-                    </button>
+                <div class="col-md-6">
+                    <div class="crisis-helpline border-warning">
+                        <h5 class="text-warning mb-3">
+                            <i class="fas fa-shield-heart me-2"></i>IMMEDIATE ACTIONS
+                        </h5>
+                        <ol class="ps-3 mb-0">
+                            <li class="mb-2"><strong>Call one of the helplines NOW</strong></li>
+                            <li class="mb-2">Tell a trusted friend or family member immediately</li>
+                            <li class="mb-2">Go to the nearest hospital emergency room</li>
+                            <li class="mb-2">Remove any means of harm from your environment</li>
+                            <li class="mb-2">Stay with someone - do NOT be alone</li>
+                            <li><a href="{{ url_for('doctors.doctors_index') }}" class="text-danger fw-bold">Find mental health professionals near you</a></li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 p-3 bg-white border border-info rounded">
+                <p class="mb-0">
+                    <i class="fas fa-heart text-danger me-2"></i>
+                    <strong>Your life has value.</strong> These feelings are temporary, even if they don't feel that way right now. 
+                    Professional help is available 24/7. You don't have to face this alone. People care about you and want to help.
+                </p>
+            </div>
+        </div>
+
+        <!-- Assessment Mode Selection -->
+        <div class="row mb-4" id="modeSelection">
+            <div class="col-md-6">
+                <div class="assessment-mode" data-mode="video-audio">
+                    <div class="text-center">
+                        <div class="mode-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h4>Video + Audio Assessment</h4>
+                        <p class="text-muted">Complete analysis using facial expressions and voice patterns.</p>
+                        <ul class="list-unstyled mt-3">
+                            <li><i class="fas fa-check text-success me-2"></i>Facial emotion detection</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Voice pattern analysis</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Speech sentiment analysis</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="assessment-mode" data-mode="audio-only">
+                    <div class="text-center">
+                        <div class="mode-icon">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                        <h4>Audio-Only Assessment</h4>
+                        <p class="text-muted">Privacy-focused analysis using only voice patterns.</p>
+                        <ul class="list-unstyled mt-3">
+                            <li><i class="fas fa-check text-success me-2"></i>Voice pattern analysis</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Speech sentiment analysis</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Enhanced privacy</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Recording Section -->
+        <div class="recording-section" id="recordingSection" style="display: none;">
+            <div class="text-center">
+                <h3 id="recordingTitle">Ready to Begin Assessment</h3>
+                <p id="recordingInstructions">Click record and speak naturally for 60 seconds.</p>
+            </div>
+
+            <div class="video-preview" id="videoPreview" style="display: none;">
+                <video id="videoElement" autoplay muted style="width: 100%; height: 100%; border-radius: 10px;"></video>
+                <div id="videoPlaceholder">
+                    <i class="fas fa-video" style="font-size: 48px; opacity: 0.5;"></i>
+                    <p style="margin-top: 10px; opacity: 0.7;">Camera will activate when recording starts</p>
+                </div>
+            </div>
+
+            <div class="audio-visualizer" id="audioVisualizer">
+                <div id="audioPlaceholder">
+                    <i class="fas fa-microphone" style="font-size: 36px; opacity: 0.5;"></i>
+                    <p style="margin-top: 10px; opacity: 0.7;">Audio levels will appear here</p>
+                </div>
+                <canvas id="visualizerCanvas" style="display: none; width: 100%; height: 100%;"></canvas>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="timer" id="timer">60s</div>
+
+            <div class="recording-controls">
+                <button class="record-btn record" id="recordBtn">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="record-btn stop" id="stopBtn" style="display: none;">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+
+            <div class="text-center mt-3">
+                <button class="btn btn-outline-light" id="backBtn">
+                    <i class="fas fa-arrow-left me-2"></i>Change Assessment Mode
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h3 class="text-center mb-4">
+                <i class="fas fa-chart-line me-2"></i>Assessment Results
+            </h3>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="score-card" id="depressionCard">
+                        <h5>Depression Indicators</h5>
+                        <div class="score-value" id="depressionScore">--</div>
+                        <p id="depressionLevel">Analyzing...</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="score-card" id="confidenceCard">
+                        <h5>Confidence Level</h5>
+                        <div class="score-value" id="confidenceScore">--</div>
+                        <p id="confidenceLevel">Analyzing...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="score-card" id="wellbeingCard">
+                        <h5>Overall Wellbeing</h5>
+                        <div class="score-value" id="wellbeingScore">--</div>
+                        <p id="wellbeingDescription">Analyzing...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transcription Display -->
+            <div id="transcriptionSection" class="mt-3" style="display: none;">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-quote-left me-2"></i>What I Heard</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="transcriptionText" class="mb-0 fst-italic"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recommendations">
+                <h5><i class="fas fa-lightbulb me-2"></i>Personalized Recommendations</h5>
+                <div id="recommendationsList">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Generating recommendations...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button class="btn btn-primary btn-lg" id="newAssessmentBtn">
+                    <i class="fas fa-redo me-2"></i>Take New Assessment
+                </button>
+                <button class="btn btn-outline-primary btn-lg ms-3" id="saveResultsBtn">
+                    <i class="fas fa-save me-2"></i>Save Results
+                </button>
+            </div>
+        </div>
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        class VideoAudioAssessment {
-            constructor() {
-                this.selectedMode = null;
-                this.isRecording = false;
-                this.recordingTimer = null;
-                this.totalDurationSec = 60; // default duration
-                this.timeRemaining = this.totalDurationSec;
-                this.mediaRecorder = null;
-                this.recordedChunks = [];
-                this.stream = null;
-                this.modelInfo = null;
-                
-                // Speech recognition for live transcription
-                this.recognition = null;
-                this.transcriptionText = '';
-                this.isTranscribing = false;
-                
-                this.initializeEventListeners();
-                this.initializeSpeechRecognition();
-            }
-            
-            
-            initializeSpeechRecognition() {
-                // Check if browser supports speech recognition
-                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                    this.recognition = new SpeechRecognition();
-                    
-                    this.recognition.continuous = true;
-                    this.recognition.interimResults = true;
-                    this.recognition.lang = 'en-US';
-                    
-                    this.recognition.onstart = () => {
-                        this.isTranscribing = true;
-                        this.updateTranscriptionStatus('Listening...');
-                    };
-                    
-                    this.recognition.onresult = (event) => {
-                        let interimTranscript = '';
-                        let finalTranscript = '';
-                        
-                        for (let i = event.resultIndex; i < event.results.length; i++) {
-                            const transcript = event.results[i][0].transcript;
-                            if (event.results[i].isFinal) {
-                                finalTranscript += transcript;
-                            } else {
-                                interimTranscript += transcript;
-                            }
-                        }
-                        
-                        this.transcriptionText = finalTranscript;
-                        this.updateTranscriptionDisplay(finalTranscript, interimTranscript);
-                    };
-                    
-                    this.recognition.onerror = (event) => {
-                        console.error('Speech recognition error:', event.error);
-                        this.updateTranscriptionStatus(`Error: ${event.error}`);
-                    };
-                    
-                    this.recognition.onend = () => {
-                        this.isTranscribing = false;
-                        this.updateTranscriptionStatus('Stopped');
-                    };
-                } else {
-                    console.warn('Speech recognition not supported in this browser');
-                    this.updateTranscriptionStatus('Speech recognition not supported');
-                }
-            }
-            
-            updateTranscriptionDisplay(final, interim) {
-                const transcriptionText = document.getElementById('transcriptionText');
-                const displayText = final + (interim ? `<span style="opacity: 0.6;">${interim}</span>` : '');
-                transcriptionText.innerHTML = displayText || 'No speech detected...';
-            }
-            
-            updateTranscriptionStatus(status) {
-                const statusElement = document.getElementById('transcriptionStatus');
-                statusElement.textContent = `Status: ${status}`;
-            }
-            
-            startTranscription() {
-                if (this.recognition && !this.isTranscribing) {
-                    try {
-                        this.recognition.start();
-                    } catch (error) {
-                        console.error('Error starting speech recognition:', error);
-                    }
-                }
-            }
-            
-            stopTranscription() {
-                if (this.recognition && this.isTranscribing) {
-                    this.recognition.stop();
-                }
-            }
-            
-            initializeEventListeners() {
-                // Mode selection
-                document.querySelectorAll('.assessment-mode').forEach(mode => {
-                    mode.addEventListener('click', (e) => {
-                        this.selectMode(e.currentTarget.dataset.mode);
-                    });
-                });
-                
-                // Recording controls
-                document.getElementById('recordBtn').addEventListener('click', () => {
-                    this.startRecording();
-                });
-                
-                document.getElementById('stopBtn').addEventListener('click', () => {
-                    this.stopRecording();
-                });
-                
-                document.getElementById('backBtn').addEventListener('click', () => {
-                    this.showModeSelection();
-                });
-                
-                document.getElementById('newAssessmentBtn').addEventListener('click', () => {
-                    this.resetAssessment();
-                });
-                
-                document.getElementById('saveResultsBtn').addEventListener('click', () => {
-                    this.saveResults();
-                });
+</div>
+{% endblock %}
 
-                // Duration selector
-                const durationSelect = document.getElementById('durationSelect');
-                if (durationSelect) {
-                    durationSelect.addEventListener('change', (e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (!Number.isNaN(v) && v > 0) {
-                            this.totalDurationSec = v;
-                            if (!this.isRecording) {
-                                this.timeRemaining = v;
-                                document.getElementById('timer').textContent = `${v}s`;
-                                document.getElementById('progressFill').style.width = '0%';
-                            }
-                        }
-                    });
-                }
-            }
-            
-            async selectMode(mode) {
-                this.selectedMode = mode;
-                
-                // Update UI
-                document.querySelectorAll('.assessment-mode').forEach(m => {
-                    m.classList.remove('selected');
-                });
-                document.querySelector(`[data-mode="${mode}"]`).classList.add('selected');
-                
-                // Show recording section immediately and prewarm media
-                this.showRecordingSection();
-                this.prewarmMedia();
-            }
-            
-            showRecordingSection() {
-                document.getElementById('modeSelection').style.display = 'none';
-                document.getElementById('recordingSection').style.display = 'block';
-                document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
-                
-                if (this.selectedMode === 'video-audio') {
-                    document.getElementById('videoPreview').style.display = 'block';
-                    document.getElementById('recordingTitle').textContent = 'Video + Audio Assessment';
-                    document.getElementById('recordingInstructions').textContent = `Position yourself in front of the camera and speak naturally for ${this.totalDurationSec} seconds about how you're feeling today.`;
-                } else {
-                    document.getElementById('videoPreview').style.display = 'none';
-                    document.getElementById('recordingTitle').textContent = 'Audio-Only Assessment';
-                    document.getElementById('recordingInstructions').textContent = `Speak naturally for ${this.totalDurationSec} seconds about how you're feeling today. Your voice will be analyzed for emotional patterns.`;
-                }
-            }
-            
-            showModeSelection() {
-                document.getElementById('recordingSection').style.display = 'none';
-                document.getElementById('resultsSection').style.display = 'none';
-                document.getElementById('modeSelection').style.display = 'block';
-                
-                // Clean up media
-                this.cleanupMedia();
-            }
-            
-            async startRecording() {
-                try {
-                    // Request media permissions
-                    const constraints = { audio: { sampleRate: 16000, channelCount: 1 }, video: this.selectedMode === 'video-audio' };
-                    
-                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    
-                    if (this.selectedMode === 'video-audio') {
-                        const videoElement = document.getElementById('videoElement');
-                        videoElement.srcObject = this.stream;
-                        document.getElementById('videoPlaceholder').style.display = 'none';
-                        videoElement.style.display = 'block';
-                    }
-                    
-                    // Setup media recorder with correct MIME per mode
-                    const mimeType = (this.selectedMode === 'audio-only')
-                        ? 'audio/webm;codecs=opus'
-                        : 'video/webm;codecs=vp8,opus';
-                    try {
-                        this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
-                    } catch (e) {
-                        // Fallback without explicit mimeType if not supported
-                        this.mediaRecorder = new MediaRecorder(this.stream);
-                    }
-                    this.recordedChunks = [];
-                    
-                    this.mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            this.recordedChunks.push(event.data);
-                        }
-                    };
-                    
-                    this.mediaRecorder.onstop = () => {
-                        this.processRecording();
-                    };
-                    
-                    // Start recording
-                    this.mediaRecorder.start();
-                    this.isRecording = true;
-                    this.timeRemaining = this.totalDurationSec;
-                    
-                    // Update UI
-                    document.getElementById('recordBtn').style.display = 'none';
-                    document.getElementById('stopBtn').style.display = 'inline-block';
-                    
-                    // Start timer
-                    this.startTimer();
-                    
-                    // Start audio visualization
-                    this.startAudioVisualization();
-                    
-                    // Start live transcription
-                    this.startTranscription();
-                    
-                } catch (error) {
-                    console.error('Error starting recording:', error);
-                    alert('Unable to access camera/microphone. Please check permissions.');
-                }
-            }
-            
-            stopRecording() {
-                if (this.mediaRecorder && this.isRecording) {
-                    this.mediaRecorder.stop();
-                    this.isRecording = false;
-                    
-                    // Stop timer
-                    if (this.recordingTimer) {
-                        clearInterval(this.recordingTimer);
-                    }
-                    
-                    // Update UI
-                    document.getElementById('recordBtn').style.display = 'inline-block';
-                    document.getElementById('stopBtn').style.display = 'none';
-                    document.getElementById('timer').textContent = 'Processing...';
-                    
-                    // Stop transcription
-                    this.stopTranscription();
-                    
-                    this.cleanupMedia();
-                }
-            }
-            
-            startTimer() {
-                this.recordingTimer = setInterval(() => {
-                    this.timeRemaining--;
-                    document.getElementById('timer').textContent = `${this.timeRemaining}s`;
-                    
-                    // Update progress bar
-                    const progress = ((this.totalDurationSec - this.timeRemaining) / this.totalDurationSec) * 100;
-                    document.getElementById('progressFill').style.width = `${progress}%`;
-                    
-                    if (this.timeRemaining <= 0) {
-                        this.stopRecording();
-                    }
-                }, 1000);
-            }
+{% block extra_js %}
+<script>
+class VideoAudioAssessment {
+    constructor() {
+        this.selectedMode = null;
+        this.isRecording = false;
+        this.recordingTimer = null;
+        this.totalDurationSec = 60;
+        this.timeRemaining = this.totalDurationSec;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+        this.stream = null;
+        this.latestResults = null;  // Store latest assessment results for saving
+        this.initializeEventListeners();
+    }
 
-            async prewarmMedia() {
-                try {
-                    const constraints = { audio: { sampleRate: 16000, channelCount: 1 }, video: this.selectedMode === 'video-audio' };
-                    if (!this.stream) {
-                        this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    }
-                    if (this.selectedMode === 'video-audio') {
-                        const videoElement = document.getElementById('videoElement');
-                        videoElement.srcObject = this.stream;
-                        document.getElementById('videoPlaceholder').style.display = 'none';
-                        videoElement.style.display = 'block';
-                    }
-                } catch (e) {
-                    // Ignore prewarm errors; user can still start on record
-                }
-            }
-            
-            startAudioVisualization() {
-                const canvas = document.getElementById('visualizerCanvas');
-                const ctx = canvas.getContext('2d');
-                const audioContext = new AudioContext();
-                const analyser = audioContext.createAnalyser();
-                const source = audioContext.createMediaStreamSource(this.stream);
-                
-                source.connect(analyser);
-                analyser.fftSize = 256;
-                
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                
-                canvas.style.display = 'block';
-                document.getElementById('audioPlaceholder').style.display = 'none';
-                
-                const draw = () => {
-                    if (!this.isRecording) return;
-                    
-                    requestAnimationFrame(draw);
-                    
-                    analyser.getByteFrequencyData(dataArray);
-                    
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    const barWidth = (canvas.width / bufferLength) * 2.5;
-                    let barHeight;
-                    let x = 0;
-                    
-                    for (let i = 0; i < bufferLength; i++) {
-                        barHeight = (dataArray[i] / 255) * canvas.height;
-                        
-                        ctx.fillStyle = `rgba(255, 255, 255, ${dataArray[i] / 255})`;
-                        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                        
-                        x += barWidth + 1;
-                    }
-                };
-                
-                draw();
-            }
-            
-            async processRecording() {
-                // Show results section
-                document.getElementById('recordingSection').style.display = 'none';
-                document.getElementById('resultsSection').style.display = 'block';
-                
-                // Create blob from recorded chunks with correct MIME per mode
-                    const blobType = (this.selectedMode === 'audio-only')
-                        ? 'audio/webm;codecs=opus'
-                        : 'video/webm;codecs=vp8,opus';
-                    const blob = new Blob(this.recordedChunks, { type: blobType });
-                
-                // Send to backend for analysis
-                const formData = new FormData();
-                formData.append('recording', blob);
-                formData.append('assessment_type', this.selectedMode);
-                const highAcc = document.getElementById('highAccuracyToggle')?.checked;
-                formData.append('fast', highAcc ? '0' : '1');
-                
-                try {
-                    console.log('Sending analysis request...');
-                    console.log('FormData contents:', Array.from(formData.entries()));
-                    
-                    const response = await fetch('/assessment/api/analyze-recording', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    console.log('Response status:', response.status);
-                    console.log('Response headers:', response.headers);
-                    
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Server error:', response.status, errorText);
-                        throw new Error(`Server error: ${response.status} - ${errorText}`);
-                    }
-                    
-                    const results = await response.json();
-                    console.log('Analysis results:', results);
-                    this.displayResults(results);
-                    
-                } catch (error) {
-                    console.error('Error processing recording:', error);
-                    this.displayErrorResults(error.message);
-                }
-            }
-            
-            displayResults(results) {
-                // Display scores
-                const depressionScore = (results.depression_score == null) ? '--' : Math.round(results.depression_score * 100);
-                const confidenceScore = (results.confidence_score == null) ? '--' : Math.round(results.confidence_score * 100);
-                
-                document.getElementById('depressionScore').textContent = (depressionScore === '--') ? '--' : `${depressionScore}%`;
-                document.getElementById('depressionLevel').textContent = (results.depression_level || 'unknown').toUpperCase();
-                
-                document.getElementById('confidenceScore').textContent = (confidenceScore === '--') ? '--' : `${confidenceScore}%`;
-                document.getElementById('confidenceLevel').textContent = (results.confidence_level || 'unknown').toUpperCase();
-                
-                document.getElementById('wellbeingScore').textContent = (results.overall_wellbeing || 'unknown').toUpperCase();
-                document.getElementById('wellbeingDescription').textContent = this.getWellbeingDescription(results.overall_wellbeing || 'unknown');
-                
-                // Display high-accuracy analysis details
-                this.displayAnalysisDetails(results);
-                
-                // Display recommendations
-                const recommendationsList = document.getElementById('recommendationsList');
-                recommendationsList.innerHTML = '';
-                
-                results.recommendations.forEach(rec => {
-                    const item = document.createElement('div');
-                    item.className = 'recommendation-item';
-                    item.innerHTML = `<i class="fas fa-arrow-right me-2"></i>${rec}`;
-                    recommendationsList.appendChild(item);
-                });
-
-                // Show escalation panel for severe concerns
-                const severe = (results.depression_level === 'high') || (results.overall_wellbeing === 'concerning');
-                document.getElementById('escalationPanel').style.display = severe ? 'block' : 'none';
-            }
-            
-            displayAnalysisDetails(results) {
-                const analysisInfo = document.getElementById('analysisInfo');
-                analysisInfo.style.display = 'block';
-                
-                // Display analysis quality and model info
-                document.getElementById('analysisQuality').textContent = results.analysis_quality || 'excellent';
-                document.getElementById('analysisConfidence').textContent = Math.round((results.overall_confidence || 0.96) * 100) + '%';
-                
-                // Display model information
-                if (results.models_used) {
-                    document.getElementById('modelUsed').textContent = 'High-Accuracy AI Models';
-                    document.getElementById('audioModel').textContent = results.models_used.audio || 'wav2vec2-large-robust';
-                    document.getElementById('videoModel').textContent = results.models_used.video || 'vit-large-patch16-224';
-                } else {
-                    document.getElementById('modelUsed').textContent = 'Standard Analysis';
-                    document.getElementById('audioModel').textContent = 'Basic Audio Analysis';
-                    document.getElementById('videoModel').textContent = 'Basic Video Analysis';
-                }
-                
-                // Display accuracy information
-                document.getElementById('modelAccuracy').textContent = 'Standard';
-            }
-            
-            displayErrorResults(errorMessage = 'Analysis failed') {
-                console.log('Displaying error results:', errorMessage);
-                
-                document.getElementById('depressionScore').textContent = '--';
-                document.getElementById('depressionLevel').textContent = 'Unable to analyze';
-                
-                document.getElementById('confidenceScore').textContent = '--';
-                document.getElementById('confidenceLevel').textContent = 'Unable to analyze';
-                
-                document.getElementById('wellbeingScore').textContent = 'ERROR';
-                document.getElementById('wellbeingDescription').textContent = `Analysis failed: ${errorMessage}`;
-                
-                const recommendationsList = document.getElementById('recommendationsList');
-                recommendationsList.innerHTML = `
-                    <div class="recommendation-item">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Error: ${errorMessage}
-                    </div>
-                    <div class="recommendation-item">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Please try the assessment again or contact support if the issue persists.
-                    </div>
-                `;
-                
-                // Hide analysis info panel
-                document.getElementById('analysisInfo').style.display = 'none';
-            }
-            
-            getWellbeingDescription(wellbeing) {
-                switch(wellbeing) {
-                    case 'good':
-                        return 'Your mental wellbeing appears to be in a positive state';
-                    case 'moderate':
-                        return 'Your mental wellbeing shows some areas for attention';
-                    case 'concerning':
-                        return 'Your mental wellbeing may benefit from professional support';
-                    default:
-                        return 'Assessment complete';
-                }
-            }
-            
-            cleanupMedia() {
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                    this.stream = null;
-                }
-                
-                const videoElement = document.getElementById('videoElement');
-                if (videoElement.srcObject) {
-                    videoElement.srcObject = null;
-                }
-            }
-            
-            resetAssessment() {
-                this.selectedMode = null;
-                this.isRecording = false;
-                this.timeRemaining = this.totalDurationSec;
-                
-                // Reset UI
-                document.getElementById('progressFill').style.width = '0%';
-                document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
-                
-                this.cleanupMedia();
-                this.showModeSelection();
-            }
-            
-            async saveResults() {
-                try {
-                    // Save results to backend
-                    const results = {
-                        assessment_type: this.selectedMode,
-                        timestamp: new Date().toISOString(),
-                        // Add current results data
-                    };
-                    
-                    const response = await fetch('/assessment/api/save-assessment', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(results)
-                    });
-                    
-                    if (response.ok) {
-                        alert('Assessment results saved successfully!');
-                    } else {
-                        alert('Error saving results. Please try again.');
-                    }
-                    
-                } catch (error) {
-                    console.error('Error saving results:', error);
-                    alert('Error saving results. Please try again.');
-                }
-            }
-        }
-        
-        // Initialize the assessment when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new VideoAudioAssessment();
+    initializeEventListeners() {
+        document.querySelectorAll('.assessment-mode').forEach(mode => {
+            mode.addEventListener('click', (e) => {
+                this.selectMode(e.currentTarget.dataset.mode);
+            });
         });
-    </script>
-</body>
-</html>
+
+        document.getElementById('recordBtn').addEventListener('click', () => this.startRecording());
+        document.getElementById('stopBtn').addEventListener('click', () => this.stopRecording());
+        document.getElementById('backBtn').addEventListener('click', () => this.showModeSelection());
+        document.getElementById('newAssessmentBtn').addEventListener('click', () => this.resetAssessment());
+        document.getElementById('saveResultsBtn').addEventListener('click', () => this.saveResults());
+    }
+
+    async selectMode(mode) {
+        this.selectedMode = mode;
+        document.querySelectorAll('.assessment-mode').forEach(m => m.classList.remove('selected'));
+        document.querySelector(`[data-mode="${mode}"]`).classList.add('selected');
+        this.showRecordingSection();
+        this.prewarmMedia();
+    }
+
+    showRecordingSection() {
+        document.getElementById('modeSelection').style.display = 'none';
+        document.getElementById('recordingSection').style.display = 'block';
+        document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
+
+        if (this.selectedMode === 'video-audio') {
+            document.getElementById('videoPreview').style.display = 'block';
+            document.getElementById('recordingTitle').textContent = 'Video + Audio Assessment';
+        } else {
+            document.getElementById('videoPreview').style.display = 'none';
+            document.getElementById('recordingTitle').textContent = 'Audio-Only Assessment';
+        }
+    }
+
+    showModeSelection() {
+        document.getElementById('recordingSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'none';
+        document.getElementById('crisisAlertMain').style.display = 'none';
+        document.getElementById('modeSelection').style.display = 'block';
+        this.cleanupMedia();
+    }
+
+    async startRecording() {
+        try {
+            const constraints = {
+                audio: { sampleRate: 16000, channelCount: 1 },
+                video: this.selectedMode === 'video-audio'
+            };
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            if (this.selectedMode === 'video-audio') {
+                const videoElement = document.getElementById('videoElement');
+                videoElement.srcObject = this.stream;
+                document.getElementById('videoPlaceholder').style.display = 'none';
+                videoElement.style.display = 'block';
+            }
+
+            const mimeType = this.selectedMode === 'audio-only' 
+                ? 'audio/webm;codecs=opus' 
+                : 'video/webm;codecs=vp8,opus';
+
+            this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
+            this.recordedChunks = [];
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) this.recordedChunks.push(event.data);
+            };
+
+            this.mediaRecorder.onstop = () => this.processRecording();
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.timeRemaining = this.totalDurationSec;
+
+            document.getElementById('recordBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+            this.startTimer();
+        } catch (error) {
+            console.error('Error starting recording:', error);
+            alert('Unable to access camera/microphone. Please check permissions.');
+        }
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            if (this.recordingTimer) clearInterval(this.recordingTimer);
+
+            document.getElementById('recordBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('timer').textContent = 'Processing...';
+            this.cleanupMedia();
+        }
+    }
+
+    startTimer() {
+        this.recordingTimer = setInterval(() => {
+            this.timeRemaining--;
+            document.getElementById('timer').textContent = `${this.timeRemaining}s`;
+            const progress = ((this.totalDurationSec - this.timeRemaining) / this.totalDurationSec) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+
+            if (this.timeRemaining <= 0) this.stopRecording();
+        }, 1000);
+    }
+
+    async prewarmMedia() {
+        try {
+            const constraints = {
+                audio: { sampleRate: 16000, channelCount: 1 },
+                video: this.selectedMode === 'video-audio'
+            };
+            if (!this.stream) this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            if (this.selectedMode === 'video-audio') {
+                const videoElement = document.getElementById('videoElement');
+                videoElement.srcObject = this.stream;
+                document.getElementById('videoPlaceholder').style.display = 'none';
+                videoElement.style.display = 'block';
+            }
+        } catch (e) {
+            // Ignore prewarm errors
+        }
+    }
+
+    async processRecording() {
+        document.getElementById('recordingSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'block';
+
+        const blobType = this.selectedMode === 'audio-only' 
+            ? 'audio/webm;codecs=opus' 
+            : 'video/webm;codecs=vp8,opus';
+        const blob = new Blob(this.recordedChunks, { type: blobType });
+
+        const formData = new FormData();
+        formData.append('recording', blob);
+        formData.append('assessment_type', this.selectedMode);
+
+        try {
+            console.log('Sending analysis request...');
+            const response = await fetch('/assessment/api/analyze-recording', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const results = await response.json();
+            console.log('Analysis results:', results);
+            this.displayResults(results);
+        } catch (error) {
+            console.error('Error processing recording:', error);
+            this.displayErrorResults(error.message);
+        }
+    }
+
+    displayResults(results) {
+        // Store results for saving later
+        this.latestResults = results;
+
+        const depressionScore = results.depression_score != null ? Math.round(results.depression_score * 100) : '--';
+        const confidenceScore = results.confidence_score != null ? Math.round(results.confidence_score * 100) : '--';
+
+        document.getElementById('depressionScore').textContent = depressionScore === '--' ? '--' : `${depressionScore}%`;
+        document.getElementById('depressionLevel').textContent = (results.depression_level || 'unknown').toUpperCase();
+        document.getElementById('confidenceScore').textContent = confidenceScore === '--' ? '--' : `${confidenceScore}%`;
+        document.getElementById('confidenceLevel').textContent = (results.confidence_level || 'unknown').toUpperCase();
+        document.getElementById('wellbeingScore').textContent = (results.overall_wellbeing || 'unknown').toUpperCase();
+        document.getElementById('wellbeingDescription').textContent = this.getWellbeingDescription(results.overall_wellbeing);
+
+        // Display transcription
+        const transcriptionSection = document.getElementById('transcriptionSection');
+        const transcriptionText = document.getElementById('transcriptionText');
+
+        if (results.transcribed_text && results.transcribed_text.trim() !== '') {
+            transcriptionText.textContent = `"${results.transcribed_text}"`;
+            transcriptionSection.style.display = 'block';
+        } else {
+            transcriptionSection.style.display = 'none';
+        }
+
+        // Display recommendations
+        const recommendationsList = document.getElementById('recommendationsList');
+        recommendationsList.innerHTML = '';
+
+        if (results.recommendations && results.recommendations.length > 0) {
+            results.recommendations.forEach(rec => {
+                const item = document.createElement('div');
+                item.className = 'recommendation-item';
+
+                // Check if rec is an object or string
+                if (typeof rec === 'object' && rec !== null) {
+                    // Recommendation is an object with priority, action, description
+                    const priorityBadge = rec.urgent
+                        ? '<span class="badge bg-danger me-2">URGENT</span>'
+                        : `<span class="badge bg-secondary me-2">${rec.priority || ''}</span>`;
+
+                    item.innerHTML = `
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-arrow-right me-2 mt-1"></i>
+                            <div class="flex-grow-1">
+                                ${rec.urgent ? priorityBadge : ''}
+                                <strong>${rec.action || 'Recommendation'}</strong>
+                                <p class="mb-0 text-muted small">${rec.description || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Recommendation is a simple string
+                    item.innerHTML = `<i class="fas fa-arrow-right me-2"></i>${rec}`;
+                }
+
+                recommendationsList.appendChild(item);
+            });
+        } else {
+            // No recommendations available
+            recommendationsList.innerHTML = '<p class="text-muted text-center">No specific recommendations at this time.</p>';
+        }
+
+        // CRITICAL: Check for crisis/severe depression
+        const showCrisis = (
+            results.crisis_detected ||
+            results.requires_escalation ||
+            results.requires_immediate_help ||
+            results.overall_risk === 'high' ||
+            depressionScore >= 75 ||
+            results.depression_level === 'severe' ||
+            results.depression_level === 'critical'
+        );
+
+        if (showCrisis) {
+            // Show crisis alert
+            document.getElementById('crisisAlertMain').style.display = 'block';
+            
+            // Make cards red/critical
+            document.getElementById('depressionCard').classList.add('critical');
+            document.getElementById('wellbeingCard').classList.add('critical');
+            
+            // Scroll to crisis alert
+            setTimeout(() => {
+                document.getElementById('crisisAlertMain').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 100);
+        } else {
+            document.getElementById('crisisAlertMain').style.display = 'none';
+            document.getElementById('depressionCard').classList.remove('critical');
+            document.getElementById('wellbeingCard').classList.remove('critical');
+        }
+    }
+
+    displayErrorResults(errorMessage = 'Analysis failed') {
+        document.getElementById('depressionScore').textContent = '--';
+        document.getElementById('depressionLevel').textContent = 'Unable to analyze';
+        document.getElementById('confidenceScore').textContent = '--';
+        document.getElementById('confidenceLevel').textContent = 'Unable to analyze';
+        document.getElementById('wellbeingScore').textContent = 'ERROR';
+        document.getElementById('wellbeingDescription').textContent = `Analysis failed: ${errorMessage}`;
+
+        const recommendationsList = document.getElementById('recommendationsList');
+        recommendationsList.innerHTML = `
+            <div class="recommendation-item">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error: ${errorMessage}. Please try again.
+            </div>
+        `;
+    }
+
+    getWellbeingDescription(wellbeing) {
+        const descriptions = {
+            'excellent': 'Your mental wellbeing is in a very positive state',
+            'good': 'Your mental wellbeing appears positive',
+            'moderate': 'Your mental wellbeing shows some areas for attention',
+            'concerning': 'Your mental wellbeing may benefit from professional support',
+            'serious': 'Your mental wellbeing requires immediate professional attention',
+            'critical': 'CRITICAL: Immediate professional help is needed'
+        };
+        return descriptions[wellbeing] || 'Assessment complete';
+    }
+
+    cleanupMedia() {
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        const videoElement = document.getElementById('videoElement');
+        if (videoElement.srcObject) videoElement.srcObject = null;
+    }
+
+    resetAssessment() {
+        this.selectedMode = null;
+        this.isRecording = false;
+        this.timeRemaining = this.totalDurationSec;
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('timer').textContent = `${this.totalDurationSec}s`;
+        this.cleanupMedia();
+        this.showModeSelection();
+    }
+
+    async saveResults() {
+        try {
+            if (!this.latestResults) {
+                alert('No assessment results to save. Please complete an assessment first.');
+                return;
+            }
+
+            const response = await fetch('/assessment/api/save-assessment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.latestResults)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Assessment results saved successfully!');
+            } else {
+                alert(data.message || 'Error saving results. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error saving results:', error);
+            alert('Error saving results. Please try again.');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new VideoAudioAssessment();
+});
+</script>
+
+<style>
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+</style>
+{% endblock %}

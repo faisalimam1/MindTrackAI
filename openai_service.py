@@ -1,7 +1,5 @@
 import os
-import json
 import random
-from typing import Dict, List, Optional
 
 def init_openai():
     """Initialize OpenAI - fallback version that doesn't require the package."""
@@ -398,16 +396,16 @@ class OpenAIService:
         # Handle family problems affecting work
         if 'family' in situation['problems_mentioned'] and 'work' in situation['problems_mentioned']:
             responses.extend([
-                f"Family stress bleeding into work life is exhausting. It's hard to leave family problems at home when they're weighing on your mind. Are these family issues something that needs immediate attention, or are they ongoing situations you're trying to manage?",
-                f"When family problems affect our work concentration, it often means the family stress feels unresolved or urgent. What's the most challenging part of the family situation right now? Sometimes naming the specific issue helps us figure out next steps.",
-                f"It's really difficult to focus on work when family dynamics are chaotic or stressful. Are you finding yourself thinking about the family situation while you're trying to work, or is it more that the stress is affecting your overall energy and focus?"
+                "Family stress bleeding into work life is exhausting. It's hard to leave family problems at home when they're weighing on your mind. Are these family issues something that needs immediate attention, or are they ongoing situations you're trying to manage?",
+                "When family problems affect our work concentration, it often means the family stress feels unresolved or urgent. What's the most challenging part of the family situation right now? Sometimes naming the specific issue helps us figure out next steps.",
+                "It's really difficult to focus on work when family dynamics are chaotic or stressful. Are you finding yourself thinking about the family situation while you're trying to work, or is it more that the stress is affecting your overall energy and focus?"
             ])
         
         # Handle specific emotional + impact combinations
         if 'stress' in situation['emotions_expressed'] and 'concentration' in situation['impacts_described']:
             responses.extend([
-                f"Stress and concentration problems often go hand in hand - when we're stressed, our brain prioritizes scanning for threats over focusing on tasks. What's contributing most to your stress levels right now?",
-                f"That combination of feeling stressed and unable to concentrate is really frustrating. Stress literally changes how our brain processes information. What does your stress feel like in your body - tension, racing thoughts, restlessness?"
+                "Stress and concentration problems often go hand in hand - when we're stressed, our brain prioritizes scanning for threats over focusing on tasks. What's contributing most to your stress levels right now?",
+                "That combination of feeling stressed and unable to concentrate is really frustrating. Stress literally changes how our brain processes information. What does your stress feel like in your body - tension, racing thoughts, restlessness?"
             ])
         
         # Handle book/reading requests with context
@@ -417,9 +415,9 @@ class OpenAIService:
                 responses.extend([
                     f"I can suggest some excellent books for when you're feeling {main_emotion}. What type of reading usually appeals to you - something practical with exercises, inspiring stories, or gentle philosophy? Also, are you dealing with any specific challenges I should consider?",
                     f"Books can be wonderful for managing {main_emotion}. Are you looking for something to help with anxiety, depression, stress, or just general peace of mind? I can recommend books based on what you're going through.",
-                    f"Reading for mental health is so beneficial. What's your current situation - are you feeling overwhelmed, anxious, sad, or just need some mental escape? This will help me suggest the most relevant books for you.",
-                    f"There are some amazing books that can really help calm and redirect your thoughts. Tell me a bit about what you're experiencing right now - stress, worry, sadness, or just need a mental break? I want to recommend something that truly fits your needs.",
-                    f"Books can be incredibly therapeutic. What's drawing you to reading right now - are you looking for coping strategies, inspiration, distraction, or understanding? And what's your preferred style - practical guides, memoirs, or gentle fiction?"
+                    "Reading for mental health is so beneficial. What's your current situation - are you feeling overwhelmed, anxious, sad, or just need some mental escape? This will help me suggest the most relevant books for you.",
+                    "There are some amazing books that can really help calm and redirect your thoughts. Tell me a bit about what you're experiencing right now - stress, worry, sadness, or just need a mental break? I want to recommend something that truly fits your needs.",
+                    "Books can be incredibly therapeutic. What's drawing you to reading right now - are you looking for coping strategies, inspiration, distraction, or understanding? And what's your preferred style - practical guides, memoirs, or gentle fiction?"
                 ])
             elif other_problems := [p for p in situation['problems_mentioned'] if p != 'books_reading']:
                 main_problem = other_problems[0]
@@ -429,8 +427,8 @@ class OpenAIService:
                 ])
             else:
                 responses.extend([
-                    f"I'm happy to suggest some calming, mind-diverting books. What's prompting you to look for reading recommendations right now? Are you seeking comfort, distraction, personal growth, or just something peaceful to focus on?",
-                    f"Books can be such great companions for mental wellness. What kind of mental space are you hoping to create through reading - something soothing and escapist, or more focused on personal insight and growth?"
+                    "I'm happy to suggest some calming, mind-diverting books. What's prompting you to look for reading recommendations right now? Are you seeking comfort, distraction, personal growth, or just something peaceful to focus on?",
+                    "Books can be such great companions for mental wellness. What kind of mental space are you hoping to create through reading - something soothing and escapist, or more focused on personal insight and growth?"
                 ])
         
         # Handle help-seeking with specific problems
@@ -454,72 +452,72 @@ class OpenAIService:
             # User engaged with grounding exercise
             if any(word in user_lower for word in ['see', 'around', 'there is', 'i can see', 'chair', 'table', 'wall', 'window', 'door', 'book', 'phone', 'computer', 'light']):
                 return [
-                    f"Great job engaging with the grounding technique! I can hear that you're noticing your environment. How do you feel right now compared to a few minutes ago? Sometimes just shifting our attention to the present moment can provide some relief.",
-                    f"Thank you for trying that grounding exercise. Now that you've connected with your immediate surroundings, let's build on this. Can you also notice 3 sounds you hear right now? This helps deepen the grounding effect.",
-                    f"Excellent - you're actively grounding yourself in the present moment. Notice how focusing on concrete details around you can interrupt anxious thoughts. What's one thing you noticed that you hadn't paid attention to before?"
+                    "Great job engaging with the grounding technique! I can hear that you're noticing your environment. How do you feel right now compared to a few minutes ago? Sometimes just shifting our attention to the present moment can provide some relief.",
+                    "Thank you for trying that grounding exercise. Now that you've connected with your immediate surroundings, let's build on this. Can you also notice 3 sounds you hear right now? This helps deepen the grounding effect.",
+                    "Excellent - you're actively grounding yourself in the present moment. Notice how focusing on concrete details around you can interrupt anxious thoughts. What's one thing you noticed that you hadn't paid attention to before?"
                 ]
         
         elif technique == 'music_therapy':
             # User tried music but it didn't help or had mixed results
             if any(phrase in user_lower for phrase in ['listened', 'heard', 'song', 'music', 'tried it', 'didn\'t help', 'didn\'t work', 'not satisfied', 'didn\'t satisfy', 'still feel', 'alternative']):
                 return [
-                    f"I hear that music didn't provide the relief you were hoping for. That's completely valid - different coping strategies work for different people and situations. Let's try something else: What about gentle movement? Even stretching your arms above your head or rolling your shoulders can help shift your mood.",
-                    f"Thank you for trying the music suggestion. Since that didn't resonate with you right now, let's explore other options. Sometimes when we're feeling low, our body needs attention too. Could you try taking 5 slow, deep breaths while gently massaging your temples? How does that feel?",
-                    f"I appreciate you giving music a try, even though it didn't lift your spirits this time. Let's pivot to something different. What about connecting with nature? If possible, could you step outside for just 2 minutes, or even look out a window and describe what you see? Sometimes a change of environment helps.",
-                    f"It sounds like music wasn't the right fit for how you're feeling today, and that's okay. Let's try a different approach: What's one very small thing that usually brings you even a tiny bit of comfort? Maybe a warm drink, a soft blanket, or calling someone who cares about you?"
+                    "I hear that music didn't provide the relief you were hoping for. That's completely valid - different coping strategies work for different people and situations. Let's try something else: What about gentle movement? Even stretching your arms above your head or rolling your shoulders can help shift your mood.",
+                    "Thank you for trying the music suggestion. Since that didn't resonate with you right now, let's explore other options. Sometimes when we're feeling low, our body needs attention too. Could you try taking 5 slow, deep breaths while gently massaging your temples? How does that feel?",
+                    "I appreciate you giving music a try, even though it didn't lift your spirits this time. Let's pivot to something different. What about connecting with nature? If possible, could you step outside for just 2 minutes, or even look out a window and describe what you see? Sometimes a change of environment helps.",
+                    "It sounds like music wasn't the right fit for how you're feeling today, and that's okay. Let's try a different approach: What's one very small thing that usually brings you even a tiny bit of comfort? Maybe a warm drink, a soft blanket, or calling someone who cares about you?"
                 ]
         
         elif technique == 'breathing_exercise':
             if any(word in user_lower for word in ['breathed', 'breathing', 'breath', 'tried it', 'did it', 'better', 'calmer', 'helped']):
                 return [
-                    f"Wonderful that you tried the breathing exercise! How did that feel? Even a few conscious breaths can help reset your nervous system. If it helped, you can use this technique anytime you feel overwhelmed.",
-                    f"Good work with the breathing. Your nervous system is already starting to calm down. Let's add another layer - as you breathe, try saying 'calm' on the inhale and 'peace' on the exhale. How does that feel?",
-                    f"I'm glad you engaged with the breathing technique. Notice any changes in your body - maybe your shoulders dropped or your jaw relaxed? What do you notice is different now?"
+                    "Wonderful that you tried the breathing exercise! How did that feel? Even a few conscious breaths can help reset your nervous system. If it helped, you can use this technique anytime you feel overwhelmed.",
+                    "Good work with the breathing. Your nervous system is already starting to calm down. Let's add another layer - as you breathe, try saying 'calm' on the inhale and 'peace' on the exhale. How does that feel?",
+                    "I'm glad you engaged with the breathing technique. Notice any changes in your body - maybe your shoulders dropped or your jaw relaxed? What do you notice is different now?"
                 ]
         
         elif technique == 'muscle_relaxation':
             if any(word in user_lower for word in ['tensed', 'relaxed', 'tried', 'muscles', 'shoulders', 'better', 'relief']):
                 return [
-                    f"Excellent work with the muscle relaxation! That contrast between tension and release helps your body remember what relaxation feels like. Which part of your body feels most relaxed now?",
-                    f"Great job trying that technique. Progressive muscle relaxation works because it gives your body a clear signal to let go of stress. How are you feeling in your body right now?",
-                    f"Thank you for engaging with that exercise. Your body is learning to release tension on command. What would help you remember to use this technique when stress builds up?"
+                    "Excellent work with the muscle relaxation! That contrast between tension and release helps your body remember what relaxation feels like. Which part of your body feels most relaxed now?",
+                    "Great job trying that technique. Progressive muscle relaxation works because it gives your body a clear signal to let go of stress. How are you feeling in your body right now?",
+                    "Thank you for engaging with that exercise. Your body is learning to release tension on command. What would help you remember to use this technique when stress builds up?"
                 ]
         
         elif technique == 'heartbeat_grounding':
             if any(word in user_lower for word in ['heartbeat', 'chest', 'heart', 'feel', 'tried']):
                 return [
-                    f"Perfect - connecting with your heartbeat is a powerful grounding anchor. Your heart is always there, steady and reliable. How does it feel to tune into that rhythm right now?",
-                    f"Good work focusing on your heartbeat. This technique works because it connects you to your body's natural rhythm. What do you notice about your heart rate now compared to when we started?",
-                    f"Excellent grounding work. Your heartbeat is like a built-in meditation bell - always available to bring you back to the present. How might you remember to use this when you feel scattered?"
+                    "Perfect - connecting with your heartbeat is a powerful grounding anchor. Your heart is always there, steady and reliable. How does it feel to tune into that rhythm right now?",
+                    "Good work focusing on your heartbeat. This technique works because it connects you to your body's natural rhythm. What do you notice about your heart rate now compared to when we started?",
+                    "Excellent grounding work. Your heartbeat is like a built-in meditation bell - always available to bring you back to the present. How might you remember to use this when you feel scattered?"
                 ]
         
         elif technique == 'journaling':
             if any(word in user_lower for word in ['wrote', 'writing', 'journal', 'thoughts', 'wrote down']):
                 return [
-                    f"Thank you for taking the time to write. Getting thoughts out of your head and onto paper can provide real relief. What did you notice as you were writing? Sometimes the act itself is as helpful as what we write.",
-                    f"Great work with the journaling. Writing helps organize chaotic thoughts and feelings. Did anything surprise you about what came out on paper?",
-                    f"I'm glad you tried writing it down. Journaling creates distance between you and overwhelming thoughts. How do those concerns feel now that they're outside your head?"
+                    "Thank you for taking the time to write. Getting thoughts out of your head and onto paper can provide real relief. What did you notice as you were writing? Sometimes the act itself is as helpful as what we write.",
+                    "Great work with the journaling. Writing helps organize chaotic thoughts and feelings. Did anything surprise you about what came out on paper?",
+                    "I'm glad you tried writing it down. Journaling creates distance between you and overwhelming thoughts. How do those concerns feel now that they're outside your head?"
                 ]
         
         elif technique == 'physical_activity':
             if any(phrase in user_lower for phrase in ['walked', 'walk', 'tried', 'exercise', 'moved', 'didn\'t help', 'still feel', 'alternative']):
                 return [
-                    f"I appreciate you trying to move your body. Physical activity affects everyone differently. If walking didn't shift your mood, let's try something gentler. Could you try some slow neck rolls or shoulder shrugs right where you are? Sometimes smaller movements can be more effective.",
-                    f"Thank you for giving movement a try. Since that approach didn't provide the relief you needed, let's explore a different angle. What about focusing on your breath while doing something with your hands - maybe organizing a small area or making a warm drink? How does that sound?"
+                    "I appreciate you trying to move your body. Physical activity affects everyone differently. If walking didn't shift your mood, let's try something gentler. Could you try some slow neck rolls or shoulder shrugs right where you are? Sometimes smaller movements can be more effective.",
+                    "Thank you for giving movement a try. Since that approach didn't provide the relief you needed, let's explore a different angle. What about focusing on your breath while doing something with your hands - maybe organizing a small area or making a warm drink? How does that sound?"
                 ]
         
         elif technique == 'social_connection':
             if any(phrase in user_lower for phrase in ['called', 'talked', 'reached out', 'texted', 'didn\'t help', 'made it worse', 'felt worse']):
                 return [
-                    f"I hear that reaching out didn't provide the support you were hoping for. Sometimes social connection can feel draining when we're already struggling. Let's try something that focuses just on you: What's one thing you can do right now that feels nurturing to yourself?",
-                    f"Thank you for trying to connect with others, even though it didn't lift your spirits. Sometimes we need to fill our own cup first. What's one small act of self-compassion you could show yourself right now?"
+                    "I hear that reaching out didn't provide the support you were hoping for. Sometimes social connection can feel draining when we're already struggling. Let's try something that focuses just on you: What's one thing you can do right now that feels nurturing to yourself?",
+                    "Thank you for trying to connect with others, even though it didn't lift your spirits. Sometimes we need to fill our own cup first. What's one small act of self-compassion you could show yourself right now?"
                 ]
         
         elif technique == 'self_care':
             if any(phrase in user_lower for phrase in ['tried', 'did', 'didn\'t work', 'still feel', 'not better', 'alternative']):
                 return [
-                    f"I appreciate you attempting some self-care. When traditional self-care doesn't hit the mark, sometimes we need to go even smaller. What's the tiniest thing that might bring you a moment of comfort right now - maybe just changing your position or having a sip of water?",
-                    f"Thank you for trying that self-care approach. Since it didn't provide the relief you needed, let's think differently. Sometimes when we're struggling, 'self-care' needs to be more about basic needs. Have you eaten or had water recently? Sometimes our mood is connected to these fundamentals."
+                    "I appreciate you attempting some self-care. When traditional self-care doesn't hit the mark, sometimes we need to go even smaller. What's the tiniest thing that might bring you a moment of comfort right now - maybe just changing your position or having a sip of water?",
+                    "Thank you for trying that self-care approach. Since it didn't provide the relief you needed, let's think differently. Sometimes when we're struggling, 'self-care' needs to be more about basic needs. Have you eaten or had water recently? Sometimes our mood is connected to these fundamentals."
                 ]
         
         # Universal situational follow-up - analyze what user actually said
@@ -533,9 +531,9 @@ class OpenAIService:
         engagement_indicators = ['tried', 'did', 'attempted', 'i', 'but', 'however', 'still', 'didn\'t', 'not', 'alternative', 'else', 'other']
         if any(indicator in user_lower for indicator in engagement_indicators):
             return [
-                f"I can hear that you tried something, and it sounds like you're looking for what might work better for you. That's actually really insightful - recognizing when something isn't quite right is important. What feels most challenging for you right now in this moment?",
-                f"Thank you for engaging with my suggestion, even if it didn't provide the relief you were hoping for. Everyone responds differently to coping strategies. What's one thing that has helped you feel even slightly better in the past?",
-                f"I appreciate you trying that approach. Since it didn't quite meet your needs, let's explore together. What would 'feeling a bit better' look like for you right now? Even a small shift?"
+                "I can hear that you tried something, and it sounds like you're looking for what might work better for you. That's actually really insightful - recognizing when something isn't quite right is important. What feels most challenging for you right now in this moment?",
+                "Thank you for engaging with my suggestion, even if it didn't provide the relief you were hoping for. Everyone responds differently to coping strategies. What's one thing that has helped you feel even slightly better in the past?",
+                "I appreciate you trying that approach. Since it didn't quite meet your needs, let's explore together. What would 'feeling a bit better' look like for you right now? Even a small shift?"
             ]
         
         return None  # No specific follow-up found
@@ -638,7 +636,7 @@ class OpenAIService:
                     fallback_response = f"It sounds like you're dealing with {problem} issues. What aspect of this situation feels most overwhelming?"
                 else:
                     fallback_response = "I'm here to support you. What's on your mind today?"
-            except:
+            except Exception:
                 fallback_response = "I'm here to support you. What's on your mind today?"
             
             return {

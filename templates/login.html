@@ -43,7 +43,7 @@
                 </div>
 
                 <div class="d-grid mb-3">
-                    <button type="submit" class="btn btn-primary btn-lg">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
                         <i class="fas fa-sign-in-alt me-2"></i>Sign In
                     </button>
                 </div>
@@ -62,14 +62,43 @@
 
 {% block extra_js %}
 <script>
+console.log('🔄 Login page script loading...');
+
 $(document).ready(function() {
-    $('#loginForm').on('submit', function(e) {
+    console.log('✅ Document ready - jQuery version:', $.fn.jquery);
+    
+    const form = $('#loginForm');
+    const submitBtn = $('#submitBtn');
+    
+    if (form.length === 0) {
+        console.error('❌ Form not found!');
+        return;
+    }
+    
+    console.log('✅ Form found, attaching submit handler');
+    
+    form.on('submit', function(e) {
         e.preventDefault();
+        console.log('🚀 Login form submitted');
+        
+        const username = $('#username').val().trim();
+        const password = $('#password').val();
+        
+        if (!username || !password) {
+            showAlert('Please enter both username and password', 'danger');
+            return;
+        }
+        
+        // Disable button and show loading
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<span class="spinner-border spinner-border-sm me-2"></span>Signing In...');
         
         const formData = {
-            username: $('#username').val(),
-            password: $('#password').val()
+            username: username,
+            password: password
         };
+        
+        console.log('📤 Sending login request...');
         
         $.ajax({
             url: '{{ url_for("auth.login") }}',
@@ -77,37 +106,43 @@ $(document).ready(function() {
             contentType: 'application/json',
             data: JSON.stringify(formData),
             success: function(response) {
-                // Show success message
-                const alert = $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
-                    response.message +
-                    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
-                    '</div>');
+                console.log('✅ Login successful:', response);
+                showAlert(response.message, 'success');
                 
-                $('.container').prepend(alert);
-                
-                // Redirect to dashboard after a short delay
                 setTimeout(function() {
-                    if (response.redirect) {
-                        window.location.href = response.redirect;
-                    } else {
-                        window.location.href = '{{ url_for("dashboard") }}';
-                    }
+                    const redirectUrl = response.redirect || '{{ url_for("dashboard") }}';
+                    console.log('🔀 Redirecting to:', redirectUrl);
+                    window.location.href = redirectUrl;
                 }, 1500);
             },
             error: function(xhr) {
-                const response = xhr.responseJSON;
-                const alert = $('<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
-                    (response.error || 'Login failed. Please try again.') +
-                    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
-                    '</div>');
+                console.error('❌ Login failed:', xhr);
+                const response = xhr.responseJSON || {};
+                showAlert(response.error || 'Login failed. Please try again.', 'danger');
                 
-                $('.container').prepend(alert);
+                // Re-enable button
+                submitBtn.prop('disabled', false);
+                submitBtn.html('<i class="fas fa-sign-in-alt me-2"></i>Sign In');
             }
         });
     });
+    
+    function showAlert(message, type) {
+        const alert = $('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+            message +
+            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+            '</div>');
+        
+        $('.container').prepend(alert);
+        
+        // Scroll to top to see the alert
+        $('html, body').animate({ scrollTop: 0 }, 'fast');
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            alert.alert('close');
+        }, 5000);
+    }
 });
 </script>
 {% endblock %}
-
-
-
