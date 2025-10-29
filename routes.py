@@ -3,10 +3,26 @@ from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User, JournalEntry, MoodEntry, Task, Goal, ChatMessage
 from datetime import datetime, timezone
 import logging
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Helper function to convert numpy types to Python native types for JSON serialization
+def convert_to_native(obj):
+    """Recursively convert numpy types to Python native types"""
+    if isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_to_native(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_native(item) for item in obj]
+    return obj
 
 # ===== AUTHENTICATION BLUEPRINT =====
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -26,6 +42,9 @@ def register():
         
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
+        phone_number = data.get('phoneNumber', '').strip()
+        emergency_contact_phone = data.get('emergencyContactPhone', '').strip()
+        emergency_contact_name = data.get('emergencyContactName', '').strip()
         password = data.get('password', '')
         
         # Validation
@@ -61,7 +80,13 @@ def register():
         
         # Create new user
         try:
-            user = User(username=username, email=email)
+            user = User(
+                username=username,
+                email=email,
+                phone_number=phone_number or None,
+                emergency_contact_phone=emergency_contact_phone or None,
+                emergency_contact_name=emergency_contact_name or None
+            )
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
@@ -216,7 +241,7 @@ def mood_index():
     """List mood entries"""
     entries = MoodEntry.query.filter_by(
         user_id=current_user.id
-    ).order_by(MoodEntry.created_at.desc()).limit(30).all()
+    ).order_by(MoodEntry.created_at.desc()).all()[:30]
     return render_template('mood/index.html', entries=entries)
 
 @mood_bp.route('/new', methods=['GET', 'POST'])
@@ -354,11 +379,11 @@ def ml_insights():
     """ML insights page"""
     journal_entries = JournalEntry.query.filter_by(
         user_id=current_user.id
-    ).order_by(JournalEntry.created_at.desc()).limit(50).all()
-    
+    ).order_by(JournalEntry.created_at.desc()).all()[:50]
+
     mood_entries = MoodEntry.query.filter_by(
         user_id=current_user.id
-    ).order_by(MoodEntry.created_at.desc()).limit(30).all()
+    ).order_by(MoodEntry.created_at.desc()).all()[:30]
     
     total_entries = len(journal_entries)
     avg_mood = sum(e.mood_score for e in mood_entries if e.mood_score) / len(mood_entries) if mood_entries else 0
@@ -533,12 +558,29 @@ def handle_phq9(answers, state):
             logger.error(f"Error saving PHQ-9 assessment: {e}")
             db.session.rollback()
 
-        return jsonify({
+        # Check for critical score (≥80%) and create alert
+        from critical_alert_service import check_and_create_critical_alert, send_admin_notification
+        is_critical, critical_alert, comforting_message = check_and_create_critical_alert(
+            user_id=current_user.id,
+            assessment_type='phq9',
+            score=score,
+            severity=severity
+        )
+
+        # Send admin notification if critical
+        if is_critical and critical_alert:
+            send_admin_notification(critical_alert)
+
+        response_data = {
             'done': True,
             'score': score,
             'severity': severity,
-            'crisis_detected': score >= 15  # Moderately severe or severe
-        })
+            'crisis_detected': score >= 15,  # Moderately severe or severe
+            'critical_alert': is_critical,
+            'comforting_message': comforting_message if is_critical else None
+        }
+
+        return jsonify(response_data)
 
     # Return next question
     return jsonify({
@@ -602,12 +644,39 @@ def handle_scid5pd(answers, state):
             logger.error(f"Error saving SCID-5-PD assessment: {e}")
             db.session.rollback()
 
-        return jsonify({
+        # Determine severity based on positives
+        if positives >= 15:
+            severity = 'severe'
+        elif positives >= 10:
+            severity = 'high'
+        elif positives >= 5:
+            severity = 'moderate'
+        else:
+            severity = 'mild'
+
+        # Check for critical score (≥80%) and create alert
+        from critical_alert_service import check_and_create_critical_alert, send_admin_notification
+        is_critical, critical_alert, comforting_message = check_and_create_critical_alert(
+            user_id=current_user.id,
+            assessment_type='scid5pd',
+            score=positives,
+            severity=severity
+        )
+
+        # Send admin notification if critical
+        if is_critical and critical_alert:
+            send_admin_notification(critical_alert)
+
+        response_data = {
             'done': True,
             'positives': positives,
             'risk_flag': risk_flag,
-            'crisis_detected': risk_flag and positives >= 10  # High risk
-        })
+            'crisis_detected': risk_flag and positives >= 10,  # High risk
+            'critical_alert': is_critical,
+            'comforting_message': comforting_message if is_critical else None
+        }
+
+        return jsonify(response_data)
 
     # Return next question
     return jsonify({
@@ -692,9 +761,117 @@ You're not alone in this. These feelings are temporary, and professional help ca
                 ]
             })
         
-        # Normal response (no crisis detected)
-        response_text = "I'm here to listen. How are you feeling today? Remember, I'm here to support you, but if you're in distress, please reach out to a mental health professional."
-        
+        # Advanced Mental Health Chatbot - Using pattern matching and context
+        from mental_health_chatbot import chatbot
+
+        # Get recent conversation history for context
+        recent_messages = ChatMessage.query.filter_by(
+            user_id=current_user.id
+        ).order_by(ChatMessage.created_at.desc()).all()[:5]
+
+        conversation_history = [msg.message for msg in reversed(recent_messages)]
+
+        # Analyze the message using advanced chatbot
+        analysis = chatbot.analyze_message(text, conversation_history)
+
+        # Generate contextual response
+        response_text = chatbot.generate_response(analysis)
+
+        # Legacy fallback removed - using advanced chatbot exclusively
+
+        # If for some reason the chatbot didn't generate a response, use default
+        if not response_text:
+            response_text = """I'm here to support you with your mental health journey. You can talk to me about:
+
+• How you're feeling emotionally
+• Stress, anxiety, or depression
+• Sleep or relationship issues
+• Coping strategies and self-care
+• Finding professional help
+
+What's on your mind today? I'm listening without judgment, and everything you share is confidential."""
+
+        # Remove old keyword-based code below
+        '''
+        elif any(word in text_lower for word in ['anxious', 'worried', 'stressed', 'panic', 'nervous', 'fear']):
+            response_text = """I understand you're experiencing anxiety. Anxiety can feel overwhelming, but there are ways to manage it.
+
+Try these grounding techniques:
+• Take slow, deep breaths (4 seconds in, 4 seconds hold, 4 seconds out)
+• Focus on your 5 senses - what can you see, hear, touch, smell, taste?
+• Progressive muscle relaxation
+• Remind yourself: "This feeling will pass"
+
+What's causing your anxiety right now? I'm here to listen without judgment."""
+
+        elif any(word in text_lower for word in ['sleep', 'insomnia', 'tired', 'exhausted', 'fatigue']):
+            response_text = """Sleep issues can really affect how we feel. Let's explore some sleep hygiene tips:
+
+• Keep a consistent sleep schedule
+• Avoid screens 1 hour before bed
+• Create a calming bedtime routine
+• Keep your bedroom cool and dark
+• Avoid caffeine after 2 PM
+• Try relaxation exercises before bed
+
+How long have you been experiencing sleep difficulties? Poor sleep can impact mental health, so it's important to address."""
+
+        elif any(word in text_lower for word in ['lonely', 'alone', 'isolated', 'no friends']):
+            response_text = """Feeling lonely can be really painful. Please know that you're not alone in feeling this way.
+
+Ways to combat loneliness:
+• Reach out to one person today - even a text message counts
+• Join online or local communities with shared interests
+• Volunteer - helping others can create connections
+• Practice self-connection through journaling or meditation
+
+Remember: It's quality, not quantity of connections that matters. Would you like to talk about what's making you feel isolated?"""
+
+        elif any(word in text_lower for word in ['angry', 'frustrated', 'mad', 'irritated', 'rage']):
+            response_text = """It sounds like you're feeling angry or frustrated. These are valid emotions, and it's important to process them healthily.
+
+Ways to manage anger:
+• Take a timeout - step away from the situation
+• Physical activity can help release tension
+• Write down what's making you angry
+• Practice the "STOP" technique: Stop, Take a breath, Observe, Proceed mindfully
+
+What's triggering these feelings? Let's explore constructive ways to address what's bothering you."""
+
+        elif any(word in text_lower for word in ['help', 'support', 'therapy', 'therapist', 'counseling']):
+            response_text = """It's a positive step to seek help. Here are some resources:
+
+• Use our "Find Doctors" feature to locate mental health professionals near you
+• Consider online therapy platforms if in-person isn't accessible
+• Many employers offer Employee Assistance Programs (EAP)
+• Community mental health centers often provide affordable services
+
+Would you like me to guide you to our doctor recommendation feature? Professional support can make a significant difference."""
+
+        elif any(word in text_lower for word in ['thank', 'thanks', 'grateful', 'appreciate']):
+            response_text = """You're very welcome! I'm glad I could provide some support. Remember:
+
+• Your mental health matters
+• Seeking help is a sign of strength
+• Small steps forward are still progress
+• You deserve care and compassion
+
+Is there anything else you'd like to talk about or explore?"""
+
+        elif any(word in text_lower for word in ['better', 'improving', 'good day', 'feeling good', 'happy']):
+            response_text = """That's wonderful to hear! It's important to celebrate these positive moments.
+
+To maintain your wellbeing:
+• Keep track of what's contributing to these good feelings
+• Continue any healthy habits you've developed
+• Stay connected with your support system
+• Remember this feeling during difficult times
+
+What's been helping you feel better? Identifying these factors can be valuable."""
+
+        '''
+        # End of old keyword-based code (commented out)
+
         # Save messages
         try:
             db.session.add(ChatMessage(
@@ -832,6 +1009,24 @@ def analyze_recording():
                         'message': 'Please try again later or contact support'
                     }), 503
 
+        # Check if analysis failed due to silent/invalid audio
+        if analysis_result.get('error'):
+            error_msg = analysis_result.get('error')
+            logger.error(f"Analysis error: {error_msg}")
+
+            return jsonify({
+                'error': 'Audio quality issue',
+                'message': error_msg,
+                'is_silent': analysis_result.get('is_silent', False),
+                'troubleshooting': [
+                    'Check your microphone is working properly',
+                    'Make sure you speak clearly during recording',
+                    'Record in a quiet environment',
+                    'Ensure the recording is at least 5 seconds long',
+                    'Try speaking louder and closer to the microphone'
+                ]
+            }), 400
+
         # Check if analysis was successful
         if not analysis_result.get('processing_successful', True):
             error_type = analysis_result.get('error_type', 'unknown')
@@ -843,6 +1038,12 @@ def analyze_recording():
                 'error': 'Analysis processing failed',
                 'error_type': error_type,
                 'message': 'Unable to process audio. Please try recording again with clear audio.',
+                'troubleshooting': [
+                    'Ensure FFmpeg is installed (required for audio conversion)',
+                    'Check that your audio file format is supported',
+                    'Try recording with a different device or browser',
+                    'Contact support if the problem persists'
+                ],
                 'recommendations': analysis_result.get('safety_recommendations', {})
             }), 500
 
@@ -881,7 +1082,8 @@ def analyze_recording():
         mental_health = analysis_result.get('mental_health_indicators', {})
 
         # Return comprehensive analysis results (compatible with both old and new services)
-        return jsonify({
+        # Convert numpy types to native Python types for JSON serialization
+        response_data = {
             'success': True,
             'timestamp': analysis_result.get('timestamp'),
             'analysis_type': analysis_result.get('analysis_type', analysis_result.get('assessment_type')),
@@ -941,7 +1143,10 @@ def analyze_recording():
             'processing_time': analysis_result.get('performance', {}).get('total_processing_time', 0),
             'target_met': analysis_result.get('performance', {}).get('target_met', False),
             'optimization_used': video_data is not None  # True if video was provided
-        }), 200
+        }
+
+        # Convert all numpy types to native Python types
+        return jsonify(convert_to_native(response_data)), 200
 
     except Exception as e:
         logger.error(f"Unexpected error in audio analysis: {e}", exc_info=True)
@@ -1003,10 +1208,29 @@ def save_assessment():
 
         logger.info(f"Assessment saved successfully: ID={assessment.id}")
 
+        # Check for critical score (≥80%) and create alert
+        from critical_alert_service import check_and_create_critical_alert, send_admin_notification
+
+        # Get depression score (0-1.0 scale)
+        depression_score = data.get('depression_score', 0)
+
+        is_critical, critical_alert, comforting_message = check_and_create_critical_alert(
+            user_id=current_user.id,
+            assessment_type='audio_video',
+            score=depression_score,
+            severity=data.get('depression_level', 'unknown')
+        )
+
+        # Send admin notification if critical
+        if is_critical and critical_alert:
+            send_admin_notification(critical_alert)
+
         return jsonify({
             'success': True,
             'message': 'Assessment saved successfully',
-            'assessment_id': assessment.id
+            'assessment_id': assessment.id,
+            'critical_alert': is_critical,
+            'comforting_message': comforting_message if is_critical else None
         }), 200
 
     except Exception as e:
@@ -1045,11 +1269,23 @@ def combined_results():
             latest_audio_video, latest_phq9, latest_scid
         )
 
+        # Generate key findings
+        key_findings = None
+        if composite_results:
+            key_findings = generate_key_findings(
+                latest_audio_video,
+                latest_phq9,
+                latest_scid,
+                composite_results.get('depression_score', 0)
+            )
+
         return render_template('assessments/combined_results.html',
             audio_video=latest_audio_video,
             phq9=latest_phq9,
             scid=latest_scid,
-            composite=composite_results
+            composite=composite_results,
+            key_findings=key_findings,
+            user=current_user
         )
 
     except Exception as e:
@@ -1178,9 +1414,10 @@ def calculate_composite_assessment(audio_video, phq9, scid):
         if risk_level == 'low':
             risk_level = 'medium'
 
-    # Generate recommendations
+    # Generate personalized recommendations with actual assessment data
     recommendations = generate_composite_recommendations(
-        composite_depression, risk_level, risk_factors
+        composite_depression, risk_level, risk_factors,
+        phq9=phq9, scid=scid, audio_video=audio_video
     )
 
     # Detect crisis
@@ -1207,40 +1444,714 @@ def calculate_composite_assessment(audio_video, phq9, scid):
     }
 
 
-def generate_composite_recommendations(depression_score, risk_level, risk_factors):
-    """Generate personalized recommendations based on composite assessment"""
+def generate_key_findings(audio_video, phq9, scid, composite_depression):
+    """Generate Key Findings highlighting positive and negative indicators from assessments"""
+    positives = []
+    negatives = []
+
+    # Analyze PHQ-9 results
+    if phq9 and phq9.answers_json:
+        answers = phq9.answers_json if isinstance(phq9.answers_json, list) else []
+
+        # Check for specific positive indicators
+        if len(answers) > 0 and answers[0].get('value', 3) <= 1:
+            positives.append("Shows interest and pleasure in activities")
+        if len(answers) > 7 and answers[7].get('value', 3) == 0:
+            positives.append("No restlessness or psychomotor issues reported")
+        if len(answers) > 8 and answers[8].get('value', 3) == 0:
+            positives.append("No thoughts of self-harm")
+
+        # Check for negative indicators
+        if len(answers) > 1 and answers[1].get('value', 0) >= 2:
+            negatives.append("Frequent feelings of depression or hopelessness")
+        if len(answers) > 2 and answers[2].get('value', 0) >= 2:
+            negatives.append("Persistent sleep disturbances")
+        if len(answers) > 3 and answers[3].get('value', 0) >= 2:
+            negatives.append("Low energy and fatigue")
+        if len(answers) > 4 and answers[4].get('value', 0) >= 2:
+            negatives.append("Changes in appetite or eating patterns")
+        if len(answers) > 6 and answers[6].get('value', 0) >= 2:
+            negatives.append("Difficulty concentrating")
+
+    # Analyze SCID-5-PD results
+    if scid and scid.positives:
+        if scid.positives <= 3:
+            positives.append("Stable personality indicators with low risk factors")
+        if scid.positives >= 10:
+            negatives.append("Multiple personality disorder screening indicators detected")
+        elif scid.positives >= 5:
+            negatives.append("Some personality disorder risk factors present")
+
+    # Analyze Audio/Video results
+    if audio_video:
+        if audio_video.confidence_score and audio_video.confidence_score >= 0.6:
+            positives.append("Good confidence levels detected in speech patterns")
+        elif audio_video.confidence_score and audio_video.confidence_score < 0.4:
+            negatives.append("Low confidence detected in voice tone and speech")
+
+        if audio_video.depression_score and audio_video.depression_score < 0.3:
+            positives.append("Voice and facial analysis shows healthy emotional expression")
+        elif audio_video.depression_score and audio_video.depression_score >= 0.6:
+            negatives.append("Voice patterns suggest signs of depression")
+
+    # Composite analysis
+    if composite_depression < 0.15:
+        positives.append("Overall mental health is in excellent range")
+    elif composite_depression < 0.3:
+        positives.append("Mental wellbeing is in healthy range")
+
+    # Default messages if no specific findings
+    if not positives:
+        positives.append("Taking this assessment shows self-awareness and proactive care")
+        positives.append("Seeking to understand your mental health is a positive step")
+
+    if not negatives:
+        negatives.append("No significant concerns detected in assessments")
+
+    return {
+        'positives': positives[:4],  # Limit to top 4
+        'negatives': negatives[:4]   # Limit to top 4
+    }
+
+
+def generate_composite_recommendations(depression_score, risk_level, risk_factors, phq9=None, scid=None, audio_video=None):
+    """Generate personalized, actionable recommendations based on actual user responses"""
     recommendations = []
 
-    if risk_level == 'high' or depression_score >= 0.7:
-        recommendations.extend([
-            "🚨 Seek immediate professional mental health consultation",
-            "📞 Contact crisis helplines if experiencing suicidal thoughts",
-            "🏥 Consider visiting nearest mental health facility",
-            "👥 Inform trusted friend or family member about your condition",
-            "📝 Schedule urgent appointment with psychiatrist or psychologist"
-        ])
-    elif risk_level == 'medium' or depression_score >= 0.5:
-        recommendations.extend([
-            "👨‍⚕️ Schedule appointment with mental health professional within next week",
-            "💭 Consider therapy or counseling services",
-            "📊 Monitor symptoms and track mood regularly",
-            "🧘 Practice stress-reduction techniques (meditation, deep breathing)",
-            "💪 Maintain regular physical exercise routine"
-        ])
-    else:
-        recommendations.extend([
-            "✅ Continue current mental health practices",
-            "📈 Regular self-assessment and monitoring",
-            "🎯 Consider preventive mental health strategies",
-            "😊 Maintain healthy lifestyle habits",
-            "🤝 Stay connected with support network"
-        ])
+    # Analyze PHQ-9 specific responses
+    phq9_issues = []
+    if phq9 and phq9.answers_json:
+        answers = phq9.answers_json if isinstance(phq9.answers_json, list) else []
 
-    # Add specific recommendations based on risk factors
-    if 'phq9_severe' in risk_factors or 'phq9_moderate' in risk_factors:
-        recommendations.append("📋 Follow up on PHQ-9 assessment with healthcare provider")
+        # PHQ-9 Questions mapping
+        phq9_questions = [
+            "Little interest or pleasure in doing things",
+            "Feeling down, depressed, or hopeless",
+            "Trouble falling or staying asleep, or sleeping too much",
+            "Feeling tired or having little energy",
+            "Poor appetite or overeating",
+            "Feeling bad about yourself",
+            "Trouble concentrating",
+            "Moving or speaking slowly or being restless",
+            "Thoughts of self-harm"
+        ]
 
-    if 'scid_risk_flag' in risk_factors:
-        recommendations.append("🧠 Consider personality assessment with qualified mental health professional")
+        for i, answer in enumerate(answers):
+            if i < len(phq9_questions) and answer.get('value', 0) >= 2:  # More than half the days or nearly every day
+                phq9_issues.append({
+                    'question': phq9_questions[i],
+                    'severity': answer.get('value', 0),
+                    'index': i
+                })
 
-    return recommendations[:7]  # Return top 7 recommendations
+    # Analyze SCID-5 responses
+    scid_issues = []
+    if scid and scid.answers_json:
+        answers = scid.answers_json if isinstance(scid.answers_json, list) else []
+        for i, answer in enumerate(answers):
+            if answer.get('value') == True:  # They answered yes
+                scid_issues.append(i)
+
+    # Analyze audio/video transcription
+    audio_concerns = []
+    if audio_video and audio_video.transcribed_text:
+        transcription_lower = audio_video.transcribed_text.lower()
+
+        # Detect specific concerns from transcription
+        if any(word in transcription_lower for word in ['suicide', 'kill myself', 'die', 'end it']):
+            audio_concerns.append('suicidal_ideation')
+        if any(word in transcription_lower for word in ['anxious', 'panic', 'worried', 'nervous']):
+            audio_concerns.append('anxiety')
+        if any(word in transcription_lower for word in ['alone', 'lonely', 'isolated', 'no friends']):
+            audio_concerns.append('loneliness')
+        if any(word in transcription_lower for word in ['sleep', 'insomnia', 'tired', 'exhausted']):
+            audio_concerns.append('sleep_issues')
+        if any(word in transcription_lower for word in ['work', 'job', 'stress', 'overwhelmed']):
+            audio_concerns.append('work_stress')
+
+    # Generate personalized recommendations based on specific user responses
+
+    # 1. Address PHQ-9 specific issues with personalized recommendations
+    for issue in phq9_issues:
+        q_index = issue['index']
+        severity = issue['severity']
+        question = issue['question']
+
+        if q_index == 0:  # Lost interest/pleasure
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You indicated experiencing '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "This is called anhedonia - a core symptom of depression where you lose the ability to feel pleasure.\n\n"
+                "**Understanding the problem:**\n"
+                "Anhedonia happens because depression affects brain chemistry, reducing dopamine (the 'pleasure chemical'). Activities that once brought joy now feel pointless or exhausting.\n\n"
+                "**Coping strategies that work:**\n\n"
+                "1️⃣ **Behavioral Activation (Most Effective):**\n"
+                "   • Schedule ONE small enjoyable activity daily, even if you don't feel like it\n"
+                "   • Start tiny: 5-minute walk, favorite song, petting a cat, warm shower\n"
+                "   • Track it: Mark calendar when you do it - seeing progress helps\n"
+                "   • Don't wait to 'feel like it' - action comes first, motivation follows\n\n"
+                "2️⃣ **Pleasure Retraining:**\n"
+                "   • List 10 things you used to enjoy (even if they feel pointless now)\n"
+                "   • Try 1 per week for just 10 minutes\n"
+                "   • Notice even tiny moments of interest (a pretty sky, good smell)\n"
+                "   • Keep a 'small joys' log - retrain your brain to notice pleasure\n\n"
+                "3️⃣ **Social Activation:**\n"
+                "   • Accept social invitations even when you don't want to (often helps afterward)\n"
+                "   • Ask someone to join you in activities\n"
+                "   • Social connection can spark interest when solo activities don't\n\n"
+                "4️⃣ **Try New Things:**\n"
+                "   • Sometimes old interests are too associated with 'before depression'\n"
+                "   • Try completely new: art class, cooking new recipe, different walking route\n"
+                "   • Novelty can bypass the 'nothing interests me' block\n\n"
+                "5️⃣ **Professional Help:**\n"
+                "   • Therapy (CBT or Behavioral Activation Therapy) is very effective\n"
+                "   • Medication may help restore pleasure capacity\n"
+                "   • This symptom often improves significantly with treatment"
+            )
+
+        elif q_index == 1:  # Feeling down/depressed/hopeless
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You reported '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "This persistent low mood with hopelessness is a core depression symptom that needs attention.\n\n"
+                "**Understanding the problem:**\n"
+                "Persistent depressed mood happens when brain neurotransmitters (serotonin, dopamine, norepinephrine) are out of balance. The hopelessness you feel is a symptom, not reality.\n\n"
+                "**Evidence-based coping strategies:**\n\n"
+                "1️⃣ **Cognitive Behavioral Techniques:**\n"
+                "   • **Thought Record**: Write down negative thoughts, identify distortions, create balanced alternatives\n"
+                "   • Example: 'I'm worthless' → 'I'm struggling right now, but I have value' (list 3 pieces of evidence)\n"
+                "   • Challenge 'always/never' thinking - look for exceptions\n"
+                "   • Ask: 'What would I tell a friend thinking this?'\n\n"
+                "2️⃣ **Mood Monitoring:**\n"
+                "   • Track mood 3x daily (morning, afternoon, evening) on 1-10 scale\n"
+                "   • Note what you were doing, who you were with, what you were thinking\n"
+                "   • Identify patterns: worst times of day, triggering situations\n"
+                "   • Use this data to plan better days\n\n"
+                "3️⃣ **Physical Interventions:**\n"
+                "   • Exercise: 30 min cardio 3-4x/week (as effective as medication for mild-moderate depression)\n"
+                "   • Sunlight: 15-30 min outdoor exposure daily (boosts serotonin)\n"
+                "   • Sleep regulation: Same wake time daily, even on bad days\n\n"
+                "4️⃣ **Social Connection (Even When You Don't Feel Like It):**\n"
+                "   • Schedule 1 social interaction daily, even brief (text, call, coffee)\n"
+                "   • Isolation worsens depression - connection is medicine\n"
+                "   • Tell trusted people you're struggling - hiding it makes it worse\n\n"
+                "5️⃣ **Crisis Planning:**\n"
+                "   • If hopelessness includes thoughts of suicide, tell someone TODAY\n"
+                "   • Create safety plan: list of people to call, reasons to live, coping strategies\n"
+                "   • Remove means of harm from environment\n\n"
+                "6️⃣ **Professional Treatment (IMPORTANT):**\n"
+                "   • This level of depression typically needs professional treatment\n"
+                "   • Therapy options: CBT, IPT (Interpersonal Therapy), or MBCT (Mindfulness-Based)\n"
+                "   • Medication: Antidepressants are effective for moderate-severe depression\n"
+                "   • Combination (therapy + medication) often works best\n"
+                "   • **Action: Schedule appointment within 1 week**"
+            )
+
+        elif q_index == 2:  # Sleep problems
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You're experiencing '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "Sleep disruption is both a cause and effect of depression - a vicious cycle that needs breaking.\n\n"
+                "**Understanding the problem:**\n"
+                "Depression disrupts sleep architecture (REM/deep sleep patterns). Poor sleep then worsens mood, concentration, and emotional regulation. This creates a downward spiral.\n\n"
+                "**Comprehensive Sleep Strategy (CBT-I Principles):**\n\n"
+                "1️⃣ **Sleep Schedule (Most Important):**\n"
+                "   • Same wake time EVERY day (even weekends, even after bad night)\n"
+                "   • Only go to bed when actually sleepy (not just tired)\n"
+                "   • If not asleep in 20 min, get up - return when sleepy\n"
+                "   • No napping (builds sleep pressure for night)\n\n"
+                "2️⃣ **Bedtime Routine (Wind-Down Protocol):**\n"
+                "   • Start 60-90 min before bed\n"
+                "   • Dim lights (signals melatonin production)\n"
+                "   • No screens (blue light suppresses melatonin)\n"
+                "   • Calming activities: reading, stretching, meditation, warm bath\n"
+                "   • Write tomorrow's to-do list (clears racing thoughts)\n\n"
+                "3️⃣ **Sleep Environment:**\n"
+                "   • Cool temperature (65-68°F / 18-20°C)\n"
+                "   • Dark (blackout curtains or eye mask)\n"
+                "   • Quiet (white noise if needed)\n"
+                "   • Bed for sleep/sex only (not work, TV, phone)\n\n"
+                "4️⃣ **Daytime Habits:**\n"
+                "   • Sunlight exposure: 15-30 min within 1 hour of waking (regulates circadian rhythm)\n"
+                "   • Exercise: 30 min daily, but NOT 3 hours before bed\n"
+                "   • Caffeine cutoff: None after 2 PM\n"
+                "   • Avoid alcohol (disrupts sleep quality even if you fall asleep faster)\n\n"
+                "5️⃣ **For Racing Thoughts:**\n"
+                "   • Keep 'worry journal' by bed - write it down, deal tomorrow\n"
+                "   • Breathing: 4-7-8 technique (inhale 4, hold 7, exhale 8)\n"
+                "   • Body scan meditation\n"
+                "   • Guided sleep meditation apps\n\n"
+                "6️⃣ **When to Get Professional Help:**\n"
+                "   • If insomnia persists 3+ weeks despite trying these strategies\n"
+                "   • If sleepiness interferes with daily functioning\n"
+                "   • CBT-I (Cognitive Behavioral Therapy for Insomnia) - 80-90% effective\n"
+                "   • Sleep study if suspect sleep apnea (snoring, gasping, still tired after full sleep)\n"
+                "   • Medication short-term while building good habits"
+            )
+
+        elif q_index == 3:  # Fatigue/low energy
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You indicated '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "Fatigue is one of the most challenging depression symptoms.\n\n"
+                "**Recommended actions:**\n"
+                "• Gentle movement - even a 10-minute walk can boost energy\n"
+                "• Check for medical causes - vitamin deficiencies, thyroid issues\n"
+                "• Break tasks into tiny steps - accomplishing small things builds momentum\n"
+                "• Prioritize rest without guilt - depression is exhausting"
+            )
+
+        elif q_index == 4:  # Appetite changes
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You're dealing with '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "Appetite changes are common in depression.\n\n"
+                "**Recommended actions:**\n"
+                "• Keep easy, nutritious snacks available\n"
+                "• Set meal reminders if forgetting to eat\n"
+                "• Eat with others when possible - social eating helps\n"
+                "• If significant weight change, consult a healthcare provider"
+            )
+
+        elif q_index == 5:  # Negative self-perception
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You reported '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "These self-critical thoughts are depression symptoms, not facts.\n\n"
+                "**Recommended actions:**\n"
+                "• Practice self-compassion - talk to yourself like a good friend would\n"
+                "• Challenge negative thoughts: 'What evidence supports/contradicts this?'\n"
+                "• Keep a 'evidence log' of your positive qualities and achievements\n"
+                "• Therapy (especially CBT) is very effective for changing thought patterns"
+            )
+
+        elif q_index == 6:  # Concentration problems
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You're experiencing '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "Concentration difficulties are cognitive symptoms of depression.\n\n"
+                "**Recommended actions:**\n"
+                "• Use external memory aids - lists, reminders, notes\n"
+                "• Break work into smaller chunks with breaks\n"
+                "• Reduce multitasking - focus on one thing at a time\n"
+                "• This typically improves with depression treatment"
+            )
+
+        elif q_index == 7:  # Psychomotor changes
+            recommendations.append(
+                f"📊 **From your PHQ-9 assessment:** You noted '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "These physical manifestations indicate depression severity.\n\n"
+                "**Recommended actions:**\n"
+                "• Seek professional evaluation soon - these are significant symptoms\n"
+                "• Gentle movement or relaxation exercises may help\n"
+                "• Medication may be particularly helpful for these symptoms"
+            )
+
+        elif q_index == 8:  # Self-harm thoughts
+            recommendations.append(
+                f"🚨 **CRITICAL - From your PHQ-9 assessment:** You indicated experiencing '{question.lower()}' {'nearly every day' if severity == 3 else 'more than half the days'}. "
+                "This requires immediate professional attention.\n\n"
+                "**IMMEDIATE ACTIONS:**\n"
+                "• Call crisis helpline NOW: NIMHANS 080-46110007 or iCall 9152987821\n"
+                "• See a mental health professional THIS WEEK\n"
+                "• Tell someone you trust immediately\n"
+                "• Create a safety plan - remove means of harm\n"
+                "• Use our 'Find Doctors' feature to locate professionals near you"
+            )
+
+    # 2. Address Audio/Video specific concerns
+    if 'suicidal_ideation' in audio_concerns:
+        recommendations.append(
+            "🚨 **CRITICAL - From your audio/video assessment:** Your recording indicated thoughts of suicide or self-harm. "
+            "This is a mental health emergency.\n\n"
+            "**IMMEDIATE ACTIONS:**\n"
+            "• Contact crisis support NOW: NIMHANS 080-46110007 (24/7)\n"
+            "• DO NOT be alone - call someone immediately\n"
+            "• Go to nearest emergency room if feelings intensify\n"
+            "• Your life has value - these feelings can be treated"
+        )
+
+    if 'anxiety' in audio_concerns:
+        recommendations.append(
+            "🎙️ **From your audio/video assessment:** You mentioned feeling anxious, worried, or nervous. "
+            "Your voice patterns also suggest elevated stress levels.\n\n"
+            "**Recommended actions:**\n"
+            "• Practice grounding techniques: 5-4-3-2-1 method (5 things you see, 4 you touch, etc.)\n"
+            "• Deep breathing: 4-4-4-4 box breathing\n"
+            "• Limit caffeine and ensure adequate sleep\n"
+            "• Consider therapy (CBT is very effective for anxiety)\n"
+            "• If panic attacks are frequent, see a mental health professional"
+        )
+
+    if 'loneliness' in audio_concerns:
+        recommendations.append(
+            "🎙️ **From your audio/video assessment:** You expressed feelings of loneliness or isolation. "
+            "Social connection is crucial for mental health.\n\n"
+            "**Recommended actions:**\n"
+            "• Reach out to one person today - even a brief text counts\n"
+            "• Join communities around your interests (online or in-person)\n"
+            "• Volunteer - helping others creates connections\n"
+            "• Consider group therapy or support groups\n"
+            "• Quality over quantity - one good connection makes a difference"
+        )
+
+    if 'sleep_issues' in audio_concerns:
+        recommendations.append(
+            "🎙️ **From your audio/video assessment:** You mentioned sleep difficulties. "
+            "Poor sleep significantly impacts mental health.\n\n"
+            "**Recommended actions:**\n"
+            "• Maintain consistent sleep schedule (same time every day)\n"
+            "• Create relaxing bedtime routine\n"
+            "• Avoid screens 1 hour before bed\n"
+            "• If insomnia lasts 2+ weeks, see a healthcare provider\n"
+            "• CBT for Insomnia (CBT-I) is the gold standard treatment"
+        )
+
+    if 'work_stress' in audio_concerns:
+        recommendations.append(
+            "🎙️ **From your audio/video assessment:** You mentioned work-related stress or feeling overwhelmed. "
+            "Chronic work stress can lead to burnout.\n\n"
+            "**Recommended actions:**\n"
+            "• Set clear work-life boundaries\n"
+            "• Take regular breaks during workday\n"
+            "• Practice saying 'no' to unreasonable demands\n"
+            "• Consider discussing workload with supervisor\n"
+            "• If burnout symptoms present, professional help recommended"
+        )
+
+    # 3. Address SCID-5 concerns if significant
+    if len(scid_issues) >= 10:
+        recommendations.append(
+            f"📋 **From your SCID-5-PD assessment:** You answered 'yes' to {len(scid_issues)} questions, "
+            "suggesting possible personality-related patterns that may benefit from professional evaluation.\n\n"
+            "**Recommended actions:**\n"
+            "• Consult with a mental health professional for comprehensive personality assessment\n"
+            "• Dialectical Behavior Therapy (DBT) or Schema Therapy can be very helpful\n"
+            "• Understanding your patterns is the first step to managing them\n"
+            "• Many personality-related challenges are highly treatable"
+        )
+    elif len(scid_issues) >= 5:
+        recommendations.append(
+            f"📋 **From your SCID-5-PD assessment:** You answered 'yes' to {len(scid_issues)} questions. "
+            "While this doesn't indicate a disorder, it suggests some patterns worth exploring.\n\n"
+            "**Recommended actions:**\n"
+            "• Consider therapy to explore these patterns\n"
+            "• Self-awareness is valuable - journaling can help identify triggers\n"
+            "• Professional guidance can provide coping strategies"
+        )
+
+    # If no specific issues found, add general wellness recommendations
+    if not recommendations:
+        if depression_score < 0.15:  # Good mental health
+            recommendations.append(
+                "✅ **Overall Assessment:** Your mental health appears to be in a healthy range. "
+                "Continue maintaining your positive habits.\n\n"
+                "**Recommended actions:**\n"
+                "• Continue regular self-care practices\n"
+                "• Maintain social connections\n"
+                "• Keep up with physical activity and healthy sleep\n"
+                "• Use our mood tracker to monitor ongoing wellbeing"
+            )
+        else:
+            recommendations.append(
+                "💡 **General Wellness Recommendations:**\n\n"
+                "• Monitor your mental health regularly using our assessment tools\n"
+                "• Maintain healthy sleep schedule (7-9 hours)\n"
+                "• Stay physically active (30 minutes, 3-4 times per week)\n"
+                "• Stay connected with supportive people\n"
+                "• Practice stress management techniques\n"
+                "• Consider professional consultation if symptoms worsen"
+            )
+
+    # Return all personalized recommendations (they're already specific to user's responses)
+    return recommendations
+
+
+# ===== DOCTOR RECOMMENDATIONS BLUEPRINT =====
+doctors_bp = Blueprint('doctors', __name__, url_prefix='/doctors')
+
+@doctors_bp.route('/')
+@login_required
+def index():
+    """Show doctor recommendations page"""
+    return render_template('doctors/index.html')
+
+@doctors_bp.route('/search')
+@login_required
+def search_doctors():
+    """Search for mental health professionals based on criteria"""
+    specialty = request.args.get('specialty', '')
+    location = request.args.get('location', '')
+
+    # Mental health professionals data for Bangalore
+    # In production, this would integrate with real APIs or database
+    doctors_list = [
+        {
+            'id': 1,
+            'name': 'Dr. Kapur B, MD',
+            'specialty': 'Psychiatrist',
+            'subspecialty': 'Depression & Schizophrenia',
+            'distance': 'Hebbal',
+            'rating': 4.8,
+            'review_count': 127,
+            'address': 'Hebbal, Manipal Hospital, Bangalore, Karnataka 560036',
+            'phone': '8046808476',
+            'email': 'NA',
+            'available': True,
+            'next_available': 'Visit Website',
+            'accepts_insurance': True,
+            'languages': ['English', 'Hindi', 'Punjabi'],
+            'years_experience': 47,
+            'education': 'AFMC, PUNE',
+            'certifications': ['Board Certified in Psychiatry', 'Fellow of American Psychiatric Association']
+        },
+        {
+            'id': 2,
+            'name': 'Dr. Krishen Ranganath',
+            'specialty': 'Psychiatrist',
+            'subspecialty': 'Autism, Dyslexia, Eating Disorders, Mood Disorders, PTSD',
+            'distance': 'Seshadripuram / Basaveshwara Nagar',
+            'rating': 4.9,
+            'review_count': 167,
+            'address': 'Apollo Hospitals Sheshadripuram & BINDIG MINDCARE, Bangalore',
+            'phone': '+91 80 4668 8888',
+            'email': 'NA',
+            'available': True,
+            'next_available': 'Book via Practo / Clinic inquiry',
+            'accepts_insurance': False,
+            'languages': ['English', 'Hindi', 'Kannada', 'Tamil', 'Telugu'],
+            'years_experience': 18,
+            'education': 'MBBS, MRCPsych (UK), Diploma in Clinical Psychiatry (Ireland), PG Dip Clinical Neuropsychiatry (Birmingham, UK)',
+            'certifications': [
+                'Medical Registration Verified',
+                'Certificate (Part 1) in Clinical Psychopharmacology – BAP',
+                'Internship in Medical Leadership (UK)'
+            ]
+        },
+        {
+            'id': 3,
+            'name': 'Dr. Bhupendra Chaudhry',
+            'specialty': 'Psychiatrist',
+            'subspecialty': 'Depression, Anxiety Disorders, OCD, Schizophrenia, Addiction, Psychiatric Emergencies, Child & Adolescent Issues',
+            'distance': 'Koramangala / Old Airport Road / Kumara Park West',
+            'rating': 4.6,
+            'review_count': 124,
+            'address': 'Apollo Medical Centre; Manipal Hospital — Old Airport Road; Mallige Medical Centre, Bangalore',
+            'phone': '18001024647',
+            'email': 'NA',
+            'available': True,
+            'next_available': 'Book via Practo or Apollo platform',
+            'accepts_insurance': False,
+            'languages': ['English', 'Hindi', 'Kannada'],
+            'years_experience': 33,
+            'education': 'MBBS (Kanpur University), MD Psychiatry (SNMC, Agra)',
+            'certifications': [
+                'Karnataka Medical Council Reg 79231',
+                'Member of Indian Psychiatric Society'
+            ]
+        },
+        {
+            'id': 4,
+            'name': 'Dr. Chandra Shekar M',
+            'specialty': 'Psychiatrist',
+            'subspecialty': 'General Psychiatry, Child Psychiatry, De-addiction',
+            'distance': 'RT Nagar / Horamavu',
+            'rating': 4.5,
+            'review_count': 18,
+            'address': 'Medax Hospitals (RT Nagar); Trust-In Hospital (Horamavu); Sridi Sai Hospital — various clinics in Bangalore',
+            'phone': 'On-call via Practo/clinic inquiry',
+            'email': 'NA',
+            'available': True,
+            'next_available': 'Book via Practo or hospital portal',
+            'accepts_insurance': False,
+            'languages': ['English', 'Hindi'],
+            'years_experience': 31,
+            'education': 'MBBS; DPM Psychiatry (NIMHANS); DNB Psychiatry (NIMHANS)',
+            'certifications': [
+                'Karnataka Medical Council Reg 39712',
+                'Indian Psychiatric Society',
+                'Karnataka Psychiatric Society'
+            ]
+        }
+    ]
+
+    # Filter by specialty if provided
+    if specialty:
+        doctors_list = [d for d in doctors_list if specialty.lower() in d['specialty'].lower()]
+
+    # Filter by location if provided
+    if location:
+        doctors_list = [d for d in doctors_list if location.lower() in d['distance'].lower()]
+
+    return jsonify(doctors_list)
+
+@doctors_bp.route('/<int:doctor_id>')
+@login_required
+def doctor_detail(doctor_id):
+    """Show detailed information about a specific doctor"""
+    # In production, this would fetch from a database or API
+    return render_template('doctors/detail.html', doctor_id=doctor_id)
+
+@doctors_bp.route('/appointment', methods=['POST'])
+@login_required
+def book_appointment():
+    """Book an appointment with a doctor"""
+    data = request.get_json()
+    doctor_id = data.get('doctor_id')
+    appointment_date = data.get('appointment_date')
+    appointment_time = data.get('appointment_time')
+    reason = data.get('reason')
+
+    # In production, this would:
+    # 1. Validate the appointment slot
+    # 2. Create appointment record in database
+    # 3. Send confirmation email/SMS
+    # 4. Integrate with doctor's calendar system
+
+    return jsonify({
+        'success': True,
+        'message': 'Appointment request submitted successfully',
+        'appointment': {
+            'doctor_id': doctor_id,
+            'date': appointment_date,
+            'time': appointment_time,
+            'status': 'pending'
+        }
+    })
+
+
+# ===== ADMIN BLUEPRINT =====
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+def check_admin_access():
+    """Check if current user has admin access"""
+    import os
+    if not current_user.is_authenticated:
+        return False
+
+    # Check if user is admin (either by username or by admin flag)
+    admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+    return current_user.username == admin_username
+
+
+@admin_bp.route('/')
+@login_required
+def admin_dashboard():
+    """Admin dashboard showing critical alerts"""
+    if not check_admin_access():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        from critical_alert_service import get_all_critical_alerts, get_critical_alerts_count
+
+        # Get filter parameters
+        show_resolved = request.args.get('show_resolved', 'false').lower() == 'true'
+
+        # Get all critical alerts
+        alerts = get_all_critical_alerts(include_resolved=show_resolved)
+        unviewed_count = get_critical_alerts_count()
+
+        # Statistics
+        total_alerts = len(alerts)
+        resolved_count = sum(1 for a in alerts if a.resolved)
+        unresolved_count = total_alerts - resolved_count
+
+        return render_template('admin/dashboard.html',
+            alerts=alerts,
+            unviewed_count=unviewed_count,
+            total_alerts=total_alerts,
+            resolved_count=resolved_count,
+            unresolved_count=unresolved_count,
+            show_resolved=show_resolved
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading admin dashboard: {e}", exc_info=True)
+        flash('Error loading admin dashboard', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@admin_bp.route('/api/alerts')
+@login_required
+def get_alerts_api():
+    """API endpoint to get critical alerts (for real-time updates)"""
+    if not check_admin_access():
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        from critical_alert_service import get_unviewed_critical_alerts, get_critical_alerts_count
+
+        # Get unviewed alerts
+        alerts = get_unviewed_critical_alerts()
+        count = get_critical_alerts_count()
+
+        # Convert to JSON
+        alerts_data = []
+        for alert in alerts:
+            alerts_data.append({
+                'id': alert.id,
+                'username': alert.username,
+                'phone_number': alert.phone_number or 'N/A',
+                'email': alert.email or 'N/A',
+                'assessment_type': alert.assessment_type,
+                'score': alert.score,
+                'raw_score': alert.raw_score,
+                'severity': alert.severity,
+                'created_at': alert.created_at.isoformat() if alert.created_at else None,
+                'alert_sent': alert.alert_sent
+            })
+
+        return jsonify({
+            'success': True,
+            'alerts': alerts_data,
+            'count': count
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching alerts API: {e}")
+        return jsonify({'error': 'Failed to fetch alerts'}), 500
+
+
+@admin_bp.route('/api/alert/<int:alert_id>/view', methods=['POST'])
+@login_required
+def mark_alert_viewed_api(alert_id):
+    """Mark an alert as viewed"""
+    if not check_admin_access():
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        from critical_alert_service import mark_alert_viewed
+
+        data = request.get_json() or {}
+        notes = data.get('notes')
+
+        success = mark_alert_viewed(alert_id, admin_notes=notes)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Alert marked as viewed'})
+        else:
+            return jsonify({'error': 'Alert not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Error marking alert as viewed: {e}")
+        return jsonify({'error': 'Failed to update alert'}), 500
+
+
+@admin_bp.route('/api/alert/<int:alert_id>/resolve', methods=['POST'])
+@login_required
+def mark_alert_resolved_api(alert_id):
+    """Mark an alert as resolved"""
+    if not check_admin_access():
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        from critical_alert_service import mark_alert_resolved
+
+        data = request.get_json() or {}
+        notes = data.get('notes')
+
+        success = mark_alert_resolved(alert_id, admin_notes=notes)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Alert marked as resolved'})
+        else:
+            return jsonify({'error': 'Alert not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Error marking alert as resolved: {e}")
+        return jsonify({'error': 'Failed to update alert'}), 500

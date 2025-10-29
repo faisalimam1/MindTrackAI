@@ -426,6 +426,9 @@ class EnhancedAudioAnalysisService:
                 audio_features,
                 sentiment
             )
+            # If base_score is None, audio is silent or invalid
+            if base_score is None:
+                return None  # Propagate the error
         else:
             base_score = 0.5
 

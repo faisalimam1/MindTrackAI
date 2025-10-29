@@ -11,14 +11,78 @@ UPDATED VERSION with:
 - Proper preprocessing and validation
 """
 
+from __future__ import annotations
+
 import os
+import shutil
+from dotenv import load_dotenv
 
-# FFmpeg configuration - use specific path if not in system PATH
-FFMPEG_PATH = r'C:\Users\imamf\ffmpeg-8.0-essentials_build\bin\ffmpeg.exe'
-FFPROBE_PATH = r'C:\Users\imamf\ffmpeg-8.0-essentials_build\bin\ffprobe.exe'
+# Load environment variables
+load_dotenv()
 
-# Set FFmpeg paths for pydub
-os.environ['PATH'] = r'C:\Users\imamf\ffmpeg-8.0-essentials_build\bin' + os.pathsep + os.environ.get('PATH', '')
+# FFmpeg configuration with auto-detection
+def find_ffmpeg():
+    """
+    Find FFmpeg executable using multiple methods:
+    1. Environment variable FFMPEG_PATH
+    2. System PATH
+    3. Common installation locations
+    """
+    # Check environment variable first
+    ffmpeg_path = os.getenv('FFMPEG_PATH')
+    if ffmpeg_path and os.path.isfile(ffmpeg_path):
+        return ffmpeg_path
+
+    # Check if ffmpeg is in system PATH
+    ffmpeg_in_path = shutil.which('ffmpeg')
+    if ffmpeg_in_path:
+        return ffmpeg_in_path
+
+    # Check common installation locations (Windows)
+    common_paths = [
+        r'C:\ffmpeg\bin\ffmpeg.exe',
+        r'C:\Program Files\ffmpeg\bin\ffmpeg.exe',
+        r'C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe',
+    ]
+    for path in common_paths:
+        if os.path.isfile(path):
+            return path
+
+    return None
+
+def find_ffprobe():
+    """Find FFprobe executable"""
+    ffprobe_path = os.getenv('FFPROBE_PATH')
+    if ffprobe_path and os.path.isfile(ffprobe_path):
+        return ffprobe_path
+
+    ffprobe_in_path = shutil.which('ffprobe')
+    if ffprobe_in_path:
+        return ffprobe_in_path
+
+    common_paths = [
+        r'C:\ffmpeg\bin\ffprobe.exe',
+        r'C:\Program Files\ffmpeg\bin\ffprobe.exe',
+        r'C:\Program Files (x86)\ffmpeg\bin\ffprobe.exe',
+    ]
+    for path in common_paths:
+        if os.path.isfile(path):
+            return path
+
+    return None
+
+# Detect FFmpeg
+FFMPEG_PATH = find_ffmpeg()
+FFPROBE_PATH = find_ffprobe()
+FFMPEG_AVAILABLE = FFMPEG_PATH is not None
+
+if FFMPEG_AVAILABLE:
+    # Add FFmpeg directory to PATH for pydub
+    ffmpeg_dir = os.path.dirname(FFMPEG_PATH)
+    os.environ['PATH'] = ffmpeg_dir + os.pathsep + os.environ.get('PATH', '')
+    print(f"FFmpeg found at: {FFMPEG_PATH}")
+else:
+    print("Warning: FFmpeg not found. Audio conversion will be limited. Please install FFmpeg or set FFMPEG_PATH environment variable.")
 
 try:
     import cv2
@@ -32,6 +96,7 @@ try:
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
+    np = None  # Define np as None for type hints when numpy not available
     print("Warning: NumPy not available. Analysis will be limited.")
 
 try:
@@ -91,11 +156,15 @@ except ImportError:
     print("Info: noisereduce not available. Audio preprocessing limited.")
 
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING, Any
 import logging
 import tempfile
 import os
 import subprocess
+
+# TYPE_CHECKING allows type hints to work even if imports fail at runtime
+if TYPE_CHECKING:
+    import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -325,33 +394,33 @@ class VideoAudioAnalysisService:
             logger.info(f"Temp input file: {tmp_in} ({len(audio_bytes)} bytes)")
 
             # Method 1: Try FFmpeg (most reliable for WebM/Opus conversion)
-            try:
-                # Use full path to FFmpeg if available, otherwise use 'ffmpeg' from PATH
-                ffmpeg_cmd = FFMPEG_PATH if os.path.exists(FFMPEG_PATH) else 'ffmpeg'
+            if FFMPEG_AVAILABLE and FFMPEG_PATH:
+                try:
+                    result = subprocess.run([
+                        FFMPEG_PATH, '-loglevel', 'error', '-i', tmp_in,
+                        '-acodec', 'pcm_s16le',  # 16-bit PCM
+                        '-ar', '16000',           # 16kHz sample rate
+                        '-ac', '1',               # Mono
+                        '-y',                     # Overwrite
+                        out_wav_path
+                    ], check=True, capture_output=True, timeout=30, text=True)
 
-                result = subprocess.run([
-                    ffmpeg_cmd, '-loglevel', 'error', '-i', tmp_in,
-                    '-acodec', 'pcm_s16le',  # 16-bit PCM
-                    '-ar', '16000',           # 16kHz sample rate
-                    '-ac', '1',               # Mono
-                    '-y',                     # Overwrite
-                    out_wav_path
-                ], check=True, capture_output=True, timeout=30, text=True)
+                    # Verify output file
+                    if os.path.exists(out_wav_path) and os.path.getsize(out_wav_path) > 1000:
+                        logger.info(f"✓ FFmpeg conversion successful: {os.path.getsize(out_wav_path)} bytes")
+                        conversion_successful = True
+                        return
+                    else:
+                        logger.warning("FFmpeg output file invalid or too small")
 
-                # Verify output file
-                if os.path.exists(out_wav_path) and os.path.getsize(out_wav_path) > 1000:
-                    logger.info(f"✓ FFmpeg conversion successful: {os.path.getsize(out_wav_path)} bytes")
-                    conversion_successful = True
-                    return
-                else:
-                    logger.warning("FFmpeg output file invalid or too small")
-
-            except subprocess.CalledProcessError as e:
-                logger.warning(f"FFmpeg failed: {e.stderr if e.stderr else 'Unknown error'}")
-            except FileNotFoundError:
-                logger.warning("FFmpeg not installed, trying alternative methods")
-            except subprocess.TimeoutExpired:
-                logger.warning("FFmpeg conversion timed out")
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"FFmpeg failed: {e.stderr if e.stderr else 'Unknown error'}")
+                except subprocess.TimeoutExpired:
+                    logger.warning("FFmpeg conversion timed out")
+                except Exception as e:
+                    logger.warning(f"FFmpeg error: {e}")
+            else:
+                logger.info("FFmpeg not available, skipping to alternative methods")
             
             # Method 2: Try Librosa + soundfile (direct conversion)
             if LIBROSA_AVAILABLE and not conversion_successful:
@@ -716,17 +785,18 @@ class VideoAudioAnalysisService:
         """
         try:
             if not SPEECH_RECOGNITION_AVAILABLE:
-                return "Speech recognition not available"
-            
+                logger.warning("Speech recognition not available - skipping transcription")
+                return ""  # Return empty string instead of error message
+
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
                 try:
                     # Convert to WAV
                     self._write_audio_wav(audio_data, tmp.name)
-                    
+
                     # Verify WAV file is valid
                     if not os.path.exists(tmp.name) or os.path.getsize(tmp.name) < 1000:
                         logger.error("Invalid WAV file generated for transcription")
-                        return "Could not process audio file"
+                        return ""  # Return empty string instead of error message
                     
                     logger.info(f"Transcribing audio file: {tmp.name} ({os.path.getsize(tmp.name)} bytes)")
                     
@@ -781,14 +851,15 @@ class VideoAudioAnalysisService:
                     
                     # If all methods fail but audio seems valid
                     if os.path.getsize(tmp.name) > 10000:
-                        logger.warning("All transcription methods failed for valid audio")
-                        return "Audio received but transcription unclear. Analysis will use voice features only."
-                    
-                    return "Could not understand audio clearly"
+                        logger.warning("All transcription methods failed for valid audio - will use voice features only")
+                    else:
+                        logger.warning("Could not understand audio clearly")
+
+                    return ""  # Return empty string - analysis will rely on voice features only
                     
                 except Exception as e:
                     logger.error(f"Transcription error: {e}", exc_info=True)
-                    return f"Error processing audio: {str(e)}"
+                    return ""  # Return empty string on error
                 finally:
                     try:
                         if os.path.exists(tmp.name):
@@ -798,7 +869,7 @@ class VideoAudioAnalysisService:
                         
         except Exception as e:
             logger.error(f"Fatal transcription error: {e}")
-            return "Unable to transcribe audio"
+            return ""  # Return empty string on fatal error
     
     def _analyze_speech_sentiment(self, text: str) -> Dict:
         """
@@ -822,7 +893,8 @@ class VideoAudioAnalysisService:
                 'polarity': sentiment.polarity,  # -1 to 1
                 'subjectivity': sentiment.subjectivity,  # 0 to 1
                 'sentiment_label': self._get_sentiment_label(sentiment.polarity),
-                'emotional_words': self._extract_emotional_words(text)
+                'emotional_words': self._extract_emotional_words(text),
+                'transcribed_text': text  # Add transcribed text for keyword detection
             }
         except Exception as e:
             logger.error(f"Error analyzing speech sentiment: {e}")
@@ -830,7 +902,8 @@ class VideoAudioAnalysisService:
                 'polarity': 0.0,
                 'subjectivity': 0.5,
                 'sentiment_label': 'neutral',
-                'emotional_words': []
+                'emotional_words': [],
+                'transcribed_text': ''  # Empty string on error
             }
     
     def _calculate_voice_depression_score(self, voice_analysis: Dict, sentiment_analysis: Dict) -> float:
@@ -856,12 +929,12 @@ class VideoAudioAnalysisService:
         try:
             # Check if audio was silent or failed extraction
             if voice_analysis.get('is_silent', False):
-                logger.warning("Audio was silent, returning moderate depression score")
-                return 0.6
-            
+                logger.error("Audio is too quiet or silent - cannot analyze")
+                return None  # Return None to indicate failure
+
             if voice_analysis.get('extraction_failed', False):
-                logger.warning("Feature extraction failed, returning default score")
-                return 0.5
+                logger.error("Feature extraction failed - cannot analyze")
+                return None  # Return None to indicate failure
             
             # ===== VOICE FEATURE INDICATORS =====
             pitch_std = voice_analysis.get('pitch_std', 0.5)
@@ -892,35 +965,153 @@ class VideoAudioAnalysisService:
             polarity = sentiment_analysis.get('polarity', 0)
             subjectivity = sentiment_analysis.get('subjectivity', 0.5)
             emotional_words = sentiment_analysis.get('emotional_words', [])
-            
-            # Strong negative sentiment is a key indicator
+
+            # Get transcribed text for keyword detection
+            transcribed_text = sentiment_analysis.get('transcribed_text', '').lower()
+
+            # POSITIVE KEYWORD DETECTION (with negation context awareness)
+            positive_keywords = [
+                'happy', 'joy', 'joyful', 'love', 'wonderful', 'great', 'amazing',
+                'excited', 'fantastic', 'birthday', 'celebration', 'party', 'fun',
+                'good', 'excellent', 'awesome', 'beautiful', 'enjoying', 'glad',
+                'blessed', 'grateful', 'thankful', 'proud', 'thrilled', 'delighted'
+            ]
+
+            # Context-aware positive keyword counting - exclude negated contexts
+            negation_words = ['not', 'no', 'never', 'hardly', 'barely', 'nothing', 'neither']
+            positive_keyword_count = 0
+
+            for kw in positive_keywords:
+                if kw in transcribed_text:
+                    # Check if keyword appears in negative context
+                    is_negated = False
+                    kw_index = transcribed_text.find(kw)
+
+                    # Get 20 characters before the keyword to check for negation
+                    context_before = transcribed_text[max(0, kw_index - 20):kw_index].lower()
+
+                    # Check if any negation word appears in the context
+                    for neg_word in negation_words:
+                        if neg_word in context_before.split():
+                            is_negated = True
+                            logger.info(f"Excluded positive keyword '{kw}' due to negation context: '{context_before.strip()} {kw}'")
+                            break
+
+                    # Only count if not negated
+                    if not is_negated:
+                        positive_keyword_count += 1
+
+            # NEGATIVE/DEPRESSION KEYWORD DETECTION (Expanded)
+            depression_keywords = [
+                # Core depression words
+                'sad', 'hopeless', 'worthless', 'tired', 'depressed', 'depression',
+                'anxious', 'worried', 'alone', 'empty', 'numb', 'anxiety',
+                'exhausted', 'helpless', 'miserable', 'unhappy', 'hopelessness',
+
+                # Stress and pressure indicators
+                'pressure', 'stressed', 'stress', 'overwhelming', 'overwhelmed',
+                'burden', 'struggling', 'difficult', 'hard time', 'tough',
+
+                # Negative mood states
+                'not in a good mood', 'bad mood', 'terrible', 'awful',
+                'frustrated', 'angry', 'upset', 'crying', 'cry',
+
+                # Inability/helplessness phrases
+                'not able to', 'unable to', 'cannot', 'can\'t cope',
+                'giving up', 'no hope', 'no energy', 'no motivation',
+
+                # Social/isolation
+                'lonely', 'isolated', 'nobody', 'no one', 'abandoned',
+
+                # Physical symptoms
+                'fatigue', 'insomnia', 'sleepless', 'pain', 'headache',
+
+                # Work/academic stress
+                'work pressure', 'job stress', 'academic pressure', 'deadlines',
+                'failing', 'failure', 'unemployed', 'jobless'
+            ]
+
+            # Check for multi-word phrases first (more specific)
+            multi_word_phrases = [
+                'not in a good mood', 'not able to', 'hard time', 'work pressure',
+                'academic pressure', 'family pressure', 'no hope', 'no energy',
+                'can\'t cope', 'giving up'
+            ]
+
+            depression_keyword_count = 0
+            for phrase in multi_word_phrases:
+                if phrase in transcribed_text:
+                    depression_keyword_count += 2  # Count multi-word phrases more heavily
+
+            # Then check single words
+            for kw in depression_keywords:
+                if len(kw.split()) == 1 and kw in transcribed_text:  # Single words only
+                    depression_keyword_count += 1
+
+            # Calculate sentiment score
             if polarity < -0.3:
                 sentiment_score = 0.7
             elif polarity < -0.1:
                 sentiment_score = 0.55
             elif polarity < 0.1:
                 sentiment_score = 0.45
+            elif polarity < 0.3:
+                sentiment_score = 0.25
+            elif polarity >= 0.3:
+                # Strong positive sentiment
+                sentiment_score = max(0.0, 0.15 - (polarity - 0.3) * 0.3)
             else:
                 sentiment_score = max(0, -polarity) * 0.4
-            
+
             # High subjectivity with negative sentiment suggests emotional distress
             if subjectivity > 0.7 and polarity < 0:
                 sentiment_score += 0.15
-            
-            # Presence of depression-related words
-            depression_keywords = [
-                'sad', 'hopeless', 'worthless', 'tired', 'depressed',
-                'anxious', 'worried', 'alone', 'empty', 'numb',
-                'exhausted', 'helpless', 'miserable', 'unhappy'
-            ]
-            keyword_match = sum(1 for word in emotional_words
-                               if any(kw in word.lower() for kw in depression_keywords))
-            keyword_boost = min(keyword_match * 0.05, 0.15)
-            sentiment_score += keyword_boost
+
+            # Depression keywords boost (INCREASED SENSITIVITY)
+            # Each keyword adds more weight, especially multi-word phrases
+            if depression_keyword_count >= 5:
+                depression_keyword_boost = 0.40  # Very high distress
+            elif depression_keyword_count >= 3:
+                depression_keyword_boost = 0.30  # High distress
+            elif depression_keyword_count >= 2:
+                depression_keyword_boost = 0.20  # Moderate distress
+            elif depression_keyword_count >= 1:
+                depression_keyword_boost = 0.15  # Mild distress
+            else:
+                depression_keyword_boost = 0.0
+
+            sentiment_score += depression_keyword_boost
+
+            logger.info(f"Depression keywords found: {depression_keyword_count}, boost: +{depression_keyword_boost:.2f}")
+
+            # Positive keywords reduction
+            positive_keyword_reduction = min(positive_keyword_count * 0.08, 0.30)
+            sentiment_score = max(0.0, sentiment_score - positive_keyword_reduction)
             
             # ===== COMBINE VOICE AND SENTIMENT =====
-            # Voice features are more reliable than sentiment for depression detection
-            combined_score = (voice_score * 0.65 + sentiment_score * 0.35)
+            # ADAPTIVE WEIGHT DISTRIBUTION based on sentiment strength
+            # When sentiment is strongly positive, give it more weight (user is clearly happy)
+            # When sentiment is strongly negative, voice features are more reliable
+
+            if polarity >= 0.4 or positive_keyword_count >= 2:
+                # Strong positive sentiment - increase sentiment weight dramatically
+                voice_weight = 0.40  # Reduce from 0.65
+                sentiment_weight = 0.60  # Increase from 0.35
+                logger.info(f"✓ Strong positive speech detected (polarity={polarity:.2f}, pos_keywords={positive_keyword_count})")
+            elif polarity >= 0.2 or positive_keyword_count >= 1:
+                # Moderate positive sentiment - moderately increase sentiment weight
+                voice_weight = 0.50
+                sentiment_weight = 0.50
+            elif polarity <= -0.3 or depression_keyword_count >= 2:
+                # Strong negative sentiment - voice is more reliable
+                voice_weight = 0.70
+                sentiment_weight = 0.30
+            else:
+                # Neutral/unclear - use default balanced weights
+                voice_weight = 0.65
+                sentiment_weight = 0.35
+
+            combined_score = (voice_score * voice_weight + sentiment_score * sentiment_weight)
             
             # ===== APPLY CLINICAL THRESHOLDS =====
             # Research shows clear thresholds for depression voice markers
@@ -944,30 +1135,52 @@ class VideoAudioAnalysisService:
             elif severe_indicators >= 2:
                 combined_score = min(combined_score * 1.15, 1.0)
             
-            # Mild indicators reduction
+            # IMPROVED Mild indicators reduction with more aggressive reductions
             mild_indicators = 0
-            if pitch_std > 0.6:
+            if pitch_std > 0.5:  # Lowered threshold from 0.6
                 mild_indicators += 1
-            if energy_mean > 0.7:
+            if energy_mean > 0.6:  # Lowered threshold from 0.7
                 mild_indicators += 1
-            if speaking_rate > 0.7:
+            if speaking_rate > 0.6:  # Lowered threshold from 0.7
                 mild_indicators += 1
             if polarity > 0.3:
                 mild_indicators += 1
-            
-            if mild_indicators >= 3:
-                combined_score = max(combined_score * 0.75, 0.0)
-                logger.info(f"Positive indicators detected: {mild_indicators}")
+            if positive_keyword_count >= 1:  # NEW: Add positive keywords as indicator
+                mild_indicators += 1
+
+            # More aggressive reductions for positive indicators
+            if mild_indicators >= 4:
+                combined_score = max(combined_score * 0.45, 0.0)  # Very strong reduction
+                logger.info(f"✓ Excellent positive indicators ({mild_indicators}/5)")
+            elif mild_indicators >= 3:
+                combined_score = max(combined_score * 0.55, 0.0)  # Strong reduction (was 0.75)
+                logger.info(f"✓ Strong positive indicators ({mild_indicators}/5)")
             elif mild_indicators >= 2:
-                combined_score = max(combined_score * 0.85, 0.0)
+                combined_score = max(combined_score * 0.70, 0.0)  # Moderate reduction (was 0.85)
+                logger.info(f"✓ Positive indicators detected ({mild_indicators}/5)")
+
+            # POSITIVE KEYWORD OVERRIDE
+            # If user says 2+ strong positive words, apply additional reduction
+            if positive_keyword_count >= 3:
+                combined_score = max(combined_score * 0.50, 0.0)
+                logger.info(f"✓ POSITIVE KEYWORD OVERRIDE: {positive_keyword_count} positive words detected")
+            elif positive_keyword_count >= 2 and polarity >= 0.3:
+                combined_score = max(combined_score * 0.60, 0.0)
+                logger.info(f"✓ Positive keyword boost: {positive_keyword_count} words + positive sentiment")
             
             # Final bounds check
             final_score = np.clip(combined_score, 0.0, 1.0)
-            
+
+            # IMPROVED LOGGING with voice features and keywords
             logger.info(f"Depression score: {final_score:.3f} "
                        f"(voice={voice_score:.3f}, sentiment={sentiment_score:.3f}, "
                        f"severe={severe_indicators}, mild={mild_indicators})")
-            
+            logger.info(f"Voice features: pitch_std={pitch_std:.2f}, energy={energy_mean:.2f}, "
+                       f"rate={speaking_rate:.2f}, pauses={pause_frequency:.2f}")
+            logger.info(f"Sentiment: polarity={polarity:.2f}, "
+                       f"pos_keywords={positive_keyword_count}, dep_keywords={depression_keyword_count}")
+            logger.info(f"Weights used: voice={voice_weight:.2f}, sentiment={sentiment_weight:.2f}")
+
             return float(final_score)
             
         except Exception as e:
@@ -996,10 +1209,12 @@ class VideoAudioAnalysisService:
         try:
             # Check if audio was silent or failed extraction
             if voice_analysis.get('is_silent', False):
-                return 0.4
-            
+                logger.error("Audio is too quiet or silent - cannot calculate confidence")
+                return None  # Return None to indicate failure
+
             if voice_analysis.get('extraction_failed', False):
-                return 0.5
+                logger.error("Feature extraction failed - cannot calculate confidence")
+                return None  # Return None to indicate failure
             
             # ===== VOICE FEATURE INDICATORS =====
             energy_mean = voice_analysis.get('energy_mean', 0.5)
@@ -1122,11 +1337,22 @@ class VideoAudioAnalysisService:
             
             # Speech sentiment analysis
             sentiment_analysis = self._analyze_speech_sentiment(speech_text)
-            
+
             # Calculate depression indicators from voice
             depression_score = self._calculate_voice_depression_score(audio_features, sentiment_analysis)
             confidence_score = self._calculate_voice_confidence_score(audio_features, sentiment_analysis)
-            
+
+            # Check if scoring failed due to silent/invalid audio
+            if depression_score is None or confidence_score is None:
+                error_msg = "Audio is too quiet or silent. Please record again in a quieter environment and speak clearly."
+                logger.error(error_msg)
+                return {
+                    'error': error_msg,
+                    'is_silent': True,
+                    'voice_features': audio_features,
+                    'analysis_failed': True
+                }
+
             result = {
                 'voice_features': voice_analysis,
                 'speech_sentiment': sentiment_analysis,

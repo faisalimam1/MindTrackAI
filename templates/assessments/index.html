@@ -6,12 +6,13 @@
 <style>
 .crisis-alert {
     background: #fff5f5;
-    border: 3px solid #dc3545;
-    border-radius: 15px;
-    padding: 25px;
+    border: 3px solid var(--danger-color);
+    border-radius: var(--radius-lg);
+    padding: 30px;
     margin-bottom: 30px;
     animation: urgentPulse 3s infinite;
     display: none;
+    box-shadow: var(--shadow-lg);
 }
 @keyframes urgentPulse {
     0%, 100% { border-color: #dc3545; }
@@ -49,12 +50,116 @@
 {% endblock %}
 
 {% block content %}
-<div class="main-content">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h2 text-dark mb-0"><i class="fas fa-list-check me-2"></i>Mental Health Assessments</h1>
-        <a href="/assessment/combined-results" class="btn btn-primary">
+<div class="main-content fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="display-5 fw-bold mb-2" style="color: var(--primary-color);">
+                <i class="fas fa-clipboard-check me-3" style="color: var(--secondary-color);"></i>
+                Mental Health Assessments
+            </h1>
+            <p class="lead text-muted">Comprehensive mental health evaluation tools</p>
+        </div>
+        <a href="/assessment/combined-results" class="btn btn-primary btn-lg shadow">
             <i class="fas fa-chart-line me-2"></i>View Combined Results
         </a>
+    </div>
+
+    <!-- STREAMLINED ASSESSMENT FLOW INTRO -->
+    <div class="card shadow-lg mb-5" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body p-5 text-white">
+            <div class="text-center mb-4">
+                <i class="fas fa-heartbeat fa-3x mb-3"></i>
+                <h2 class="fw-bold mb-3">Complete Mental Health Assessment</h2>
+                <p class="lead mb-0">Get a comprehensive analysis of your mental wellbeing through our three-part assessment</p>
+            </div>
+
+            <div class="row g-4 mt-2">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0" style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <span class="badge bg-light text-primary" style="font-size: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 50%;">1</span>
+                            </div>
+                            <h5 class="fw-bold mb-3">
+                                <i class="fas fa-clipboard-list me-2"></i>PHQ-9 Questionnaire
+                            </h5>
+                            <p class="mb-0 small">9 questions measuring depression symptoms over the past 2 weeks</p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark"><i class="fas fa-clock me-1"></i>2-3 minutes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100 border-0" style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <span class="badge bg-light text-primary" style="font-size: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 50%;">2</span>
+                            </div>
+                            <h5 class="fw-bold mb-3">
+                                <i class="fas fa-user-check me-2"></i>SCID-5 Assessment
+                            </h5>
+                            <p class="mb-0 small">20 questions screening for personality disorder indicators</p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark"><i class="fas fa-clock me-1"></i>3-5 minutes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100 border-0" style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <span class="badge bg-light text-primary" style="font-size: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 50%;">3</span>
+                            </div>
+                            <h5 class="fw-bold mb-3">
+                                <i class="fas fa-video me-2"></i>Video/Audio Check
+                            </h5>
+                            <p class="mb-0 small">Optional 60-second recording for voice and facial sentiment analysis</p>
+                            <div class="mt-3">
+                                <span class="badge bg-light text-dark"><i class="fas fa-clock me-1"></i>1-2 minutes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 pt-3">
+                <p class="mb-3 fs-5">
+                    <i class="fas fa-check-circle me-2"></i>
+                    After completing all assessments, you'll receive:
+                </p>
+                <div class="row g-3 justify-content-center">
+                    <div class="col-auto">
+                        <span class="badge bg-light text-dark py-2 px-3">
+                            <i class="fas fa-chart-pie me-1"></i>Overall Mental Health Score
+                        </span>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-light text-dark py-2 px-3">
+                            <i class="fas fa-tag me-1"></i>Category Assessment
+                        </span>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-light text-dark py-2 px-3">
+                            <i class="fas fa-lightbulb me-1"></i>Personalized Recommendations
+                        </span>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-light text-dark py-2 px-3">
+                            <i class="fas fa-list-check me-1"></i>Key Findings
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button class="btn btn-light btn-lg px-5 shadow" onclick="document.getElementById('phq9Start').click(); document.getElementById('phq9Thread').scrollIntoView({behavior: 'smooth'});">
+                        <i class="fas fa-play me-2"></i>Start Assessment Now
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- CRISIS ALERT (Hidden by default, shown when crisis detected) -->
@@ -124,40 +229,16 @@
     </div>
 
     <div class="row g-4">
-        <!-- Video/Audio Assessment Card -->
-        <div class="col-lg-12 mb-4">
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-video me-2"></i>
-                        Video/Audio Mental Health Assessment
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="text-primary">Advanced AI-Powered Assessment</h6>
-                            <p class="mb-2">Analyze your mental health through facial expressions and voice patterns. Choose between:</p>
-                            <ul class="list-unstyled mb-3">
-                                <li><i class="fas fa-check text-success me-2"></i><strong>Video + Audio:</strong> Complete analysis with facial emotion detection</li>
-                                <li><i class="fas fa-check text-success me-2"></i><strong>Audio Only:</strong> Privacy-focused voice pattern analysis</li>
-                            </ul>
-                            <p class="text-muted small">60-second recording • Real-time analysis • Personalized recommendations</p>
-                        </div>
-                        <div class="col-md-4 text-center">
-                            <a href="/assessment/video-audio" class="btn btn-primary btn-lg">
-                                <i class="fas fa-play me-2"></i>Start Assessment
-                            </a>
-                            <p class="text-muted small mt-2">Most comprehensive analysis</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <!-- 1. PHQ-9 Assessment -->
         <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">PHQ-9 (Randomized + Branching)</div>
+            <div class="card h-100 shadow-sm">
+                <div class="card-header" style="background: var(--gray-100); padding: 1.25rem;">
+                    <h5 class="mb-0 fw-bold" style="color: var(--dark-color);">
+                        <i class="fas fa-clipboard-list me-2" style="color: var(--info-color);"></i>
+                        PHQ-9 Depression Screening
+                    </h5>
+                    <p class="text-muted mb-0 small mt-1">9-question assessment with adaptive branching</p>
+                </div>
                 <div class="card-body">
                     <div id="phq9Thread" class="vstack gap-3" style="max-height: 420px; overflow:auto; background:#f8fafc; padding:12px; border-radius:8px;"></div>
                     <div class="d-grid d-md-flex gap-2 mt-3">
@@ -167,14 +248,61 @@
                 </div>
             </div>
         </div>
+
+        <!-- 2. SCID-5-PD Assessment -->
         <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">SCID-5-PD Screening (20+ randomized, branching)</div>
+            <div class="card h-100 shadow-sm">
+                <div class="card-header" style="background: var(--gray-100); padding: 1.25rem;">
+                    <h5 class="mb-0 fw-bold" style="color: var(--dark-color);">
+                        <i class="fas fa-user-check me-2" style="color: var(--accent-teal);"></i>
+                        SCID-5-PD Screening
+                    </h5>
+                    <p class="text-muted mb-0 small mt-1">20+ questions for personality disorder screening</p>
+                </div>
                 <div class="card-body">
                     <div id="scidThread" class="vstack gap-3" style="max-height: 420px; overflow:auto; background:#f8fafc; padding:12px; border-radius:8px;"></div>
                     <div class="d-grid d-md-flex gap-2 mt-3">
                         <button class="btn btn-primary" id="scidStart">Start / Next</button>
                         <button class="btn btn-outline-secondary" id="scidReset">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Video/Audio Assessment (Optional) -->
+        <div class="col-12 mt-4">
+            <div class="card" style="border: 3px solid var(--primary-color); background: linear-gradient(135deg, #E6F3F9 0%, #FFFFFF 100%);">
+                <div class="card-header" style="background: var(--primary-color); color: white; padding: 1.5rem;">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-video me-2"></i>
+                        Video/Audio Mental Health Assessment
+                        <span class="badge bg-light text-dark ms-2">OPTIONAL</span>
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="fw-bold mb-3" style="color: var(--primary-dark);">Advanced AI-Powered Assessment</h5>
+                            <p class="mb-3 fs-6">Analyze your mental health through facial expressions and voice patterns. Choose between:</p>
+                            <ul class="list-unstyled mb-3">
+                                <li class="mb-2"><i class="fas fa-check-circle me-2" style="color: var(--success-color); font-size: 1.2rem;"></i><strong>Video + Audio:</strong> Complete analysis with facial emotion detection and voice patterns</li>
+                                <li class="mb-2"><i class="fas fa-check-circle me-2" style="color: var(--success-color); font-size: 1.2rem;"></i><strong>Audio Only:</strong> Privacy-focused voice pattern analysis</li>
+                            </ul>
+                            <div class="d-flex gap-3 flex-wrap mt-3">
+                                <span class="badge bg-info px-3 py-2"><i class="fas fa-clock me-1"></i>60-second recording</span>
+                                <span class="badge bg-success px-3 py-2"><i class="fas fa-bolt me-1"></i>Real-time analysis</span>
+                                <span class="badge bg-primary px-3 py-2"><i class="fas fa-lightbulb me-1"></i>Personalized recommendations</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center p-4">
+                            <div class="mb-3">
+                                <i class="fas fa-video fa-4x mb-3" style="color: var(--primary-color);"></i>
+                            </div>
+                            <a href="/assessment/video-audio" class="btn btn-lg btn-primary w-100 mb-2 shadow" style="padding: 1rem;">
+                                <i class="fas fa-play me-2"></i>Start Assessment
+                            </a>
+                            <p class="text-muted small mb-0"><i class="fas fa-star me-1"></i>Most comprehensive analysis</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -211,6 +339,32 @@ async function runAssessment(instrument, threadEl, stateVar) {
       ? `PHQ-9 finished. Score: ${data.score}/27 (${data.severity}).`
       : `SCID-5-PD finished. Positives: ${data.positives}/20. Risk: ${data.risk_flag ? 'Yes' : 'No'}.`;
     addBubble(threadEl, resultText, 'bot');
+
+    // Add "Results Saved" confirmation message
+    const savedMessageDiv = document.createElement('div');
+    savedMessageDiv.className = 'alert alert-success mt-3 d-flex align-items-center';
+    savedMessageDiv.style.animation = 'fadeIn 0.5s';
+    savedMessageDiv.innerHTML = `
+      <i class="fas fa-check-circle me-2" style="font-size: 1.5rem;"></i>
+      <div class="flex-grow-1">
+        <strong>Results Saved Successfully!</strong>
+        <div class="small">Your assessment has been securely saved to your profile.</div>
+      </div>
+      <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/assessment/combined-results'">
+        <i class="fas fa-chart-line me-1"></i>View Results
+      </button>
+    `;
+    threadEl.appendChild(savedMessageDiv);
+    threadEl.scrollTop = threadEl.scrollHeight;
+
+    // Show comforting message if critical alert triggered
+    if (data.critical_alert && data.comforting_message) {
+      const comfortingDiv = document.createElement('div');
+      comfortingDiv.innerHTML = data.comforting_message;
+      comfortingDiv.className = 'mt-3';
+      threadEl.appendChild(comfortingDiv);
+      threadEl.scrollTop = threadEl.scrollHeight;
+    }
 
     // Show crisis alert if needed
     if (data.crisis_detected) {

@@ -70,7 +70,7 @@ def strftime_filter(value, format='%Y-%m-%d'):
         return str(value)
 
 # ===== IMPORT MODELS =====
-from models import User, JournalEntry, MoodEntry, Task, Goal, AssessmentSession, ChatMessage  # noqa: E402
+from models import User, JournalEntry, MoodEntry, Task, Goal, AssessmentSession, ChatMessage, CriticalUser  # noqa: E402
 
 # ===== USER LOADER =====
 @login_manager.user_loader
@@ -80,10 +80,10 @@ def load_user(user_id):
 # ===== IMPORT AND REGISTER BLUEPRINTS =====
 try:
     from routes import (
-        auth_bp, journal_bp, mood_bp, tasks_bp, goals_bp, 
-        ml_bp, doctors_bp, assessments_bp, chat_bp, assessment_bp
+        auth_bp, journal_bp, mood_bp, tasks_bp, goals_bp,
+        ml_bp, doctors_bp, assessments_bp, chat_bp, assessment_bp, admin_bp
     )
-    
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(journal_bp)
     app.register_blueprint(mood_bp)
@@ -94,7 +94,8 @@ try:
     app.register_blueprint(assessments_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(assessment_bp)
-    
+    app.register_blueprint(admin_bp)
+
     print("[OK] All blueprints registered successfully")
 except Exception as e:
     print(f"[WARNING] Blueprint registration error: {e}")
@@ -115,21 +116,21 @@ def dashboard():
         # Get user's data
         journal_entries = JournalEntry.query.filter_by(
             user_id=current_user.id
-        ).order_by(JournalEntry.created_at.desc()).limit(10).all()
-        
+        ).order_by(JournalEntry.created_at.desc()).all()[:10]
+
         mood_entries = MoodEntry.query.filter_by(
             user_id=current_user.id
-        ).order_by(MoodEntry.created_at.desc()).limit(30).all()
-        
+        ).order_by(MoodEntry.created_at.desc()).all()[:30]
+
         tasks = Task.query.filter_by(
-            user_id=current_user.id, 
+            user_id=current_user.id,
             status='pending'
-        ).order_by(Task.due_date.asc()).limit(5).all()
-        
+        ).order_by(Task.due_date.asc()).all()[:5]
+
         goals = Goal.query.filter_by(
-            user_id=current_user.id, 
+            user_id=current_user.id,
             status='active'
-        ).order_by(Goal.target_date.asc()).limit(5).all()
+        ).order_by(Goal.target_date.asc()).all()[:5]
 
         # Calculate statistics
         total_journals = JournalEntry.query.filter_by(user_id=current_user.id).count()
@@ -166,9 +167,9 @@ def dashboard():
 
         # Recent chat messages
         recent_chat = ChatMessage.query.filter_by(
-            user_id=current_user.id, 
+            user_id=current_user.id,
             role='bot'
-        ).order_by(ChatMessage.created_at.desc()).limit(5).all()
+        ).order_by(ChatMessage.created_at.desc()).all()[:5]
 
         return render_template('dashboard.html',
             journal_entries=journal_entries,
@@ -318,11 +319,11 @@ def get_recommendations():
     """API endpoint for recommendations"""
     journal_entries = JournalEntry.query.filter_by(
         user_id=current_user.id
-    ).order_by(JournalEntry.created_at.desc()).limit(10).all()
-    
+    ).order_by(JournalEntry.created_at.desc()).all()[:10]
+
     mood_entries = MoodEntry.query.filter_by(
         user_id=current_user.id
-    ).order_by(MoodEntry.created_at.desc()).limit(30).all()
+    ).order_by(MoodEntry.created_at.desc()).all()[:30]
     
     tasks = Task.query.filter_by(user_id=current_user.id, status='pending').all()
     goals = Goal.query.filter_by(user_id=current_user.id, status='active').all()

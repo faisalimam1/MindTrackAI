@@ -3,97 +3,112 @@
 {% block title %}Dashboard - MindTrack AI{% endblock %}
 
 {% block content %}
-<div class="main-content">
-    <div class="row mb-4">
+<div class="main-content fade-in">
+    <div class="row mb-5">
         <div class="col-12">
-            <h1 class="display-5 fw-bold text-dark mb-2">
-                Welcome back, {{ current_user.username }}! 👋
+            <h1 class="display-4 fw-bold mb-2" style="color: var(--primary-color);">
+                <i class="fas fa-user-circle me-2" style="color: var(--secondary-color);"></i>
+                Welcome back, {{ current_user.username }}!
             </h1>
-            <p class="text-muted">Here's your mental health overview</p>
+            <p class="text-muted fs-5">Here's your mental health overview for today</p>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card text-center p-3">
-                <div class="feature-icon mx-auto mb-2" style="width: 50px; height: 50px;">
+    <!-- Stats Cards - Desktop Optimized -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-3 col-md-6">
+            <div class="stats-card">
+                <div class="feature-icon mx-auto">
                     <i class="fas fa-journal-whills"></i>
                 </div>
-                <h3 class="mb-0">{{ total_journals or 0 }}</h3>
-                <p class="text-muted mb-0">Journal Entries</p>
+                <h3>{{ total_journals or 0 }}</h3>
+                <p>Journal Entries</p>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center p-3">
-                <div class="feature-icon mx-auto mb-2" style="width: 50px; height: 50px;">
+        <div class="col-lg-3 col-md-6">
+            <div class="stats-card">
+                <div class="feature-icon mx-auto" style="background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));">
                     <i class="fas fa-heart"></i>
                 </div>
-                <h3 class="mb-0">{{ avg_mood or 0 }}</h3>
-                <p class="text-muted mb-0">Avg Mood</p>
+                <h3>{{ avg_mood or 0 }}</h3>
+                <p>Average Mood</p>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center p-3">
-                <div class="feature-icon mx-auto mb-2" style="width: 50px; height: 50px;">
+        <div class="col-lg-3 col-md-6">
+            <div class="stats-card">
+                <div class="feature-icon mx-auto" style="background: linear-gradient(135deg, var(--info-color), var(--accent-teal));">
                     <i class="fas fa-tasks"></i>
                 </div>
-                <h3 class="mb-0">{{ active_tasks or 0 }}</h3>
-                <p class="text-muted mb-0">Active Tasks</p>
+                <h3>{{ active_tasks or 0 }}</h3>
+                <p>Active Tasks</p>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center p-3">
-                <div class="feature-icon mx-auto mb-2" style="width: 50px; height: 50px;">
+        <div class="col-lg-3 col-md-6">
+            <div class="stats-card">
+                <div class="feature-icon mx-auto" style="background: linear-gradient(135deg, var(--warning-color), #DD6B20);">
                     <i class="fas fa-bullseye"></i>
                 </div>
-                <h3 class="mb-0">{{ active_goals or 0 }}</h3>
-                <p class="text-muted mb-0">Active Goals</p>
+                <h3>{{ active_goals or 0 }}</h3>
+                <p>Active Goals</p>
             </div>
         </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h3 class="mb-3">Quick Actions</h3>
+    <div class="row mb-5">
+        <div class="col-12 mb-4">
+            <h3 class="fw-bold" style="color: var(--dark-color);">
+                <i class="fas fa-bolt me-2" style="color: var(--warning-color);"></i>
+                Quick Actions
+            </h3>
+            <p class="text-muted">Start your mental wellness activities</p>
         </div>
-        <div class="col-md-3">
-            <a href="{{ url_for('journal.journal_new_entry') }}" class="card text-decoration-none h-100 p-3 text-center">
-                <i class="fas fa-plus-circle fa-3x text-primary mb-2"></i>
-                <h5 class="mb-0">New Journal Entry</h5>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('journal.journal_new_entry') }}" class="card text-decoration-none h-100 p-4 text-center" style="border: 2px solid var(--gray-200);">
+                <i class="fas fa-plus-circle fa-4x mb-3" style="color: var(--primary-color);"></i>
+                <h5 class="mb-2 fw-bold" style="color: var(--dark-color);">New Journal Entry</h5>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">Write about your day</p>
             </a>
         </div>
-        <div class="col-md-3">
-            <a href="{{ url_for('mood.mood_new_entry') }}" class="card text-decoration-none h-100 p-3 text-center">
-                <i class="fas fa-smile fa-3x text-success mb-2"></i>
-                <h5 class="mb-0">Log Mood</h5>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('mood.mood_new_entry') }}" class="card text-decoration-none h-100 p-4 text-center" style="border: 2px solid var(--gray-200);">
+                <i class="fas fa-smile fa-4x mb-3" style="color: var(--secondary-color);"></i>
+                <h5 class="mb-2 fw-bold" style="color: var(--dark-color);">Log Mood</h5>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">Track how you're feeling</p>
             </a>
         </div>
-        <div class="col-md-3">
-            <a href="{{ url_for('chat.chat_index') }}" class="card text-decoration-none h-100 p-3 text-center">
-                <i class="fas fa-comments fa-3x text-info mb-2"></i>
-                <h5 class="mb-0">Chat with AI</h5>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('chat.chat_index') }}" class="card text-decoration-none h-100 p-4 text-center" style="border: 2px solid var(--gray-200);">
+                <i class="fas fa-comments fa-4x mb-3" style="color: var(--info-color);"></i>
+                <h5 class="mb-2 fw-bold" style="color: var(--dark-color);">Chat with AI</h5>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">Get support anytime</p>
             </a>
         </div>
-        <div class="col-md-3">
-            <a href="{{ url_for('assessments.assessments_index') }}" class="card text-decoration-none h-100 p-3 text-center">
-                <i class="fas fa-clipboard-check fa-3x text-warning mb-2"></i>
-                <h5 class="mb-0">Take Assessment</h5>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('assessments.assessments_index') }}" class="card text-decoration-none h-100 p-4 text-center" style="border: 2px solid var(--gray-200);">
+                <i class="fas fa-clipboard-check fa-4x mb-3" style="color: var(--warning-color);"></i>
+                <h5 class="mb-2 fw-bold" style="color: var(--dark-color);">Take Assessment</h5>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">Check your mental health</p>
             </a>
         </div>
     </div>
 
     <!-- Recommendations -->
     {% if recommendations %}
-    <div class="row mb-4">
+    <div class="row mb-5">
+        <div class="col-12 mb-4">
+            <h3 class="fw-bold" style="color: var(--dark-color);">
+                <i class="fas fa-lightbulb me-2" style="color: var(--warning-color);"></i>
+                Personalized Recommendations
+            </h3>
+            <p class="text-muted">Based on your recent activity and patterns</p>
+        </div>
         <div class="col-12">
-            <h3 class="mb-3">Personalized Recommendations</h3>
             {% for rec in recommendations %}
-            <div class="alert alert-{{ rec.color }} d-flex align-items-center">
-                <i class="{{ rec.icon }} fa-2x me-3"></i>
+            <div class="alert alert-{{ rec.color }} d-flex align-items-center mb-3 shadow-sm">
+                <i class="{{ rec.icon }} fa-3x me-4"></i>
                 <div class="flex-grow-1">
-                    <h5 class="mb-1">{{ rec.title }}</h5>
+                    <h5 class="mb-2 fw-bold">{{ rec.title }}</h5>
                     <p class="mb-0">{{ rec.description }}</p>
                 </div>
             </div>
@@ -104,9 +119,12 @@
 
     <!-- Recent Activity -->
     <div class="row">
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h4 class="mb-3">Recent Journal Entries</h4>
+        <div class="col-lg-6 mb-4">
+            <div class="card p-4 h-100">
+                <h4 class="mb-4 fw-bold" style="color: var(--dark-color);">
+                    <i class="fas fa-book-open me-2" style="color: var(--primary-color);"></i>
+                    Recent Journal Entries
+                </h4>
                 {% if journal_entries %}
                     <div class="list-group list-group-flush">
                         {% for entry in journal_entries[:5] %}
@@ -125,9 +143,12 @@
             </div>
         </div>
         
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h4 class="mb-3">Upcoming Tasks</h4>
+        <div class="col-lg-6 mb-4">
+            <div class="card p-4 h-100">
+                <h4 class="mb-4 fw-bold" style="color: var(--dark-color);">
+                    <i class="fas fa-clipboard-list me-2" style="color: var(--info-color);"></i>
+                    Upcoming Tasks
+                </h4>
                 {% if tasks %}
                     <div class="list-group list-group-flush">
                         {% for task in tasks[:5] %}

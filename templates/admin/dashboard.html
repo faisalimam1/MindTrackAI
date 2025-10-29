@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Critical Alerts{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-shield-alt text-danger"></i> Admin Dashboard
+                    </h2>
+                    <p class="text-muted mb-0">Monitor critical user alerts in real-time</p>
+                </div>
+                <div>
+                    <span class="badge bg-danger fs-5" id="alert-badge">
+                        {{ unviewed_count }} New Alerts
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                    <h3 class="mb-0">{{ unviewed_count }}</h3>
+                    <p class="text-muted mb-0">Unviewed Alerts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                    <h3 class="mb-0">{{ unresolved_count }}</h3>
+                    <p class="text-muted mb-0">Unresolved</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h3 class="mb-0">{{ resolved_count }}</h3>
+                    <p class="text-muted mb-0">Resolved</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-3x text-info mb-3"></i>
+                    <h3 class="mb-0">{{ total_alerts }}</h3>
+                    <p class="text-muted mb-0">Total Alerts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="showResolved"
+                                   {% if show_resolved %}checked{% endif %}
+                                   onchange="toggleResolvedAlerts(this)">
+                            <label class="form-check-label" for="showResolved">
+                                Show Resolved Alerts
+                            </label>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="refreshAlerts()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Alerts Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-injured"></i> Critical User Alerts
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="alerts-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Status</th>
+                                    <th>User</th>
+                                    <th>Phone</th>
+                                    <th>Assessment</th>
+                                    <th>Score</th>
+                                    <th>Severity</th>
+                                    <th>Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if alerts %}
+                                    {% for alert in alerts %}
+                                    <tr class="alert-row {% if not alert.admin_viewed %}table-danger{% elif not alert.resolved %}table-warning{% endif %}"
+                                        data-alert-id="{{ alert.id }}">
+                                        <td>
+                                            {% if alert.resolved %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Resolved
+                                                </span>
+                                            {% elif alert.admin_viewed %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-eye"></i> Viewed
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-exclamation-triangle"></i> New
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ alert.username }}</strong>
+                                            {% if alert.email %}
+                                            <br><small class="text-muted">{{ alert.email }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="tel:{{ alert.phone_number }}" class="text-decoration-none">
+                                                <i class="fas fa-phone text-primary"></i>
+                                                {{ alert.phone_number or 'N/A' }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ alert.assessment_type.upper() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <strong class="text-danger">{{ "%.1f"|format(alert.score) }}%</strong>
+                                            <br><small class="text-muted">{{ alert.raw_score }}</small>
+                                        </td>
+                                        <td>
+                                            {% if alert.severity in ['severe', 'critical'] %}
+                                                <span class="badge bg-danger">{{ alert.severity.upper() }}</span>
+                                            {% elif alert.severity in ['high', 'moderately_severe'] %}
+                                                <span class="badge bg-warning">{{ alert.severity.upper() }}</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ alert.severity.upper() }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else 'N/A' }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                {% if not alert.admin_viewed %}
+                                                <button class="btn btn-outline-primary"
+                                                        onclick="markAsViewed({{ alert.id }})"
+                                                        title="Mark as Viewed">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% endif %}
+                                                {% if not alert.resolved %}
+                                                <button class="btn btn-outline-success"
+                                                        onclick="markAsResolved({{ alert.id }})"
+                                                        title="Mark as Resolved">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button class="btn btn-outline-info"
+                                                        onclick="showAlertDetails({{ alert.id }})"
+                                                        title="View Details">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            <i class="fas fa-check-circle fa-3x mb-3 d-block"></i>
+                                            No critical alerts at this time
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Contacts Card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-phone-volume"></i> Emergency Resources
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-danger">
+                                <i class="fas fa-hospital"></i> NIMHANS Helpline
+                            </h6>
+                            <p class="mb-0"><strong>080-46110007</strong> (24/7)</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-danger">
+                                <i class="fas fa-hands-helping"></i> iCall
+                            </h6>
+                            <p class="mb-0"><strong>9152987821</strong> (Mon-Sat, 8 AM - 10 PM)</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-danger">
+                                <i class="fas fa-heart"></i> Vandrevala Foundation
+                            </h6>
+                            <p class="mb-0"><strong>1860-2662-345</strong> (24/7)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Alert Details -->
+<div class="modal fade" id="alertDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-injured"></i> Alert Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="alertDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    refreshAlerts();
+}, 30000);
+
+// Show browser notification for new alerts
+function checkForNewAlerts() {
+    fetch('/admin/api/alerts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.count > 0) {
+                // Update badge
+                document.getElementById('alert-badge').textContent = data.count + ' New Alerts';
+
+                // Show browser notification
+                if (Notification.permission === 'granted' && data.count > {{ unviewed_count }}) {
+                    new Notification('⚠️ New Critical Alert', {
+                        body: `A user needs immediate attention. Check the admin dashboard now.`,
+                        icon: '/static/icon-alert.png',
+                        requireInteraction: true
+                    });
+                }
+            }
+        })
+        .catch(error => console.error('Error checking alerts:', error));
+}
+
+// Request notification permission on load
+if (Notification.permission === 'default') {
+    Notification.requestPermission();
+}
+
+// Check for new alerts every 10 seconds
+setInterval(checkForNewAlerts, 10000);
+
+function refreshAlerts() {
+    window.location.reload();
+}
+
+function toggleResolvedAlerts(checkbox) {
+    const showResolved = checkbox.checked;
+    window.location.href = `/admin?show_resolved=${showResolved}`;
+}
+
+function markAsViewed(alertId) {
+    if (!confirm('Mark this alert as viewed?')) return;
+
+    fetch(`/admin/api/alert/${alertId}/view`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Alert marked as viewed', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showNotification('Failed to update alert', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error updating alert', 'error');
+    });
+}
+
+function markAsResolved(alertId) {
+    const notes = prompt('Resolution notes (optional):');
+
+    fetch(`/admin/api/alert/${alertId}/resolve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ notes: notes })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Alert marked as resolved', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showNotification('Failed to update alert', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error updating alert', 'error');
+    });
+}
+
+function showAlertDetails(alertId) {
+    // Get alert details from the table row
+    const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
+    if (!row) return;
+
+    const cells = row.cells;
+    const content = `
+        <div class="alert alert-danger">
+            <h6 class="alert-heading">
+                <i class="fas fa-exclamation-triangle"></i> Critical Alert
+            </h6>
+        </div>
+        <dl class="row">
+            <dt class="col-sm-3">Status:</dt>
+            <dd class="col-sm-9">${cells[0].innerText}</dd>
+
+            <dt class="col-sm-3">User:</dt>
+            <dd class="col-sm-9">${cells[1].innerText}</dd>
+
+            <dt class="col-sm-3">Phone:</dt>
+            <dd class="col-sm-9">${cells[2].innerText}</dd>
+
+            <dt class="col-sm-3">Assessment:</dt>
+            <dd class="col-sm-9">${cells[3].innerText}</dd>
+
+            <dt class="col-sm-3">Score:</dt>
+            <dd class="col-sm-9"><strong class="text-danger">${cells[4].innerText}</strong></dd>
+
+            <dt class="col-sm-3">Severity:</dt>
+            <dd class="col-sm-9">${cells[5].innerText}</dd>
+
+            <dt class="col-sm-3">Time:</dt>
+            <dd class="col-sm-9">${cells[6].innerText}</dd>
+        </dl>
+        <hr>
+        <p class="mb-0">
+            <strong>Recommended Actions:</strong>
+        </p>
+        <ul>
+            <li>Contact the user immediately via phone or email</li>
+            <li>Assess their current situation and immediate safety</li>
+            <li>Provide crisis resources if needed</li>
+            <li>Schedule follow-up check-in</li>
+            <li>Document all interactions</li>
+        </ul>
+    `;
+
+    document.getElementById('alertDetailsContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('alertDetailsModal')).show();
+}
+
+function showNotification(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// Play alert sound when page loads with new alerts
+{% if unviewed_count > 0 %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Optional: Add audio alert
+    // const audio = new Audio('/static/alert-sound.mp3');
+    // audio.play().catch(e => console.log('Audio play failed:', e));
+});
+{% endif %}
+</script>
+{% endblock %}

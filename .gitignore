@@ -5,6 +5,8 @@ __pycache__/
 *.pyd
 .Python
 venv/
+.venv/
+env/
 .env
 .env.*
 instance/*.db
@@ -14,6 +16,7 @@ instance/*.sqlite
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Logs
 logs/
@@ -21,6 +24,8 @@ logs/
 
 # Build
 *.egg-info/
+dist/
+build/
 
 # IDE
 .vscode/
@@ -28,6 +33,12 @@ logs/
 
 # Cache
 *.cache/
+
+# Uploads
+uploads/
+
+# Instance folder
+instance/
 
 .env
 instance/*.db

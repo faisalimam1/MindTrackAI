@@ -344,141 +344,108 @@ class OptimizedVideoAudioService:
 
     def _generate_enhanced_recommendations(self, mental_health: Dict) -> list:
         """
-        Generate enhanced, prioritized recommendations
+        Generate enhanced, prioritized, and actionable recommendations
 
         Args:
             mental_health: Mental health indicators dictionary
 
         Returns:
-            List of recommendation dictionaries with priority
+            List of specific, actionable recommendations
         """
         recommendations = []
 
         depression_score = mental_health.get('depression_score', 0.5)
-        depression_level = mental_health.get('depression_level', 'moderate')
         anxiety_score = mental_health.get('anxiety_score', 0.5)
-        anxiety_level = mental_health.get('anxiety_level', 'moderate')
         risk_factors = mental_health.get('risk_factors', [])
+        protective_factors = mental_health.get('protective_factors', [])
 
-        # High depression recommendations
-        if depression_score >= 0.6:
-            recommendations.append({
-                'category': 'depression',
-                'priority': 'high',
-                'title': 'Consider Professional Mental Health Support',
-                'description': 'Your assessment shows significant depression indicators. Professional support can provide evidence-based treatment.',
-                'actions': [
-                    'Schedule appointment with therapist or psychiatrist',
-                    'Consider evidence-based treatments (CBT, medication)',
-                    'Reach out to crisis helpline if having thoughts of self-harm'
-                ],
-                'resources': [
-                    'National Suicide Prevention Lifeline: 988',
-                    'Crisis Text Line: Text HOME to 741741',
-                    'NIMHANS (India): 080-46110007'
-                ]
-            })
+        # SEVERE/CRISIS LEVEL (70%+)
+        if depression_score >= 0.7:
+            recommendations.extend([
+                "🚨 Seek Professional Help Immediately - Schedule an urgent appointment with a psychiatrist or therapist within 24-48 hours",
+                "📞 Consider Crisis Support - If experiencing thoughts of self-harm, call NIMHANS (080-46110007) or iCall (9152987821) right now",
+                "👥 Connect with Someone - Tell a trusted friend, family member, or colleague about how you're feeling today",
+                "💊 Explore Treatment Options - Discuss evidence-based treatments like therapy (CBT/DBT) or medication with a mental health professional",
+                "🏥 Safety First - If feeling unsafe, visit the nearest hospital emergency room or mental health crisis center"
+            ])
+            return recommendations[:5]
 
-        # Moderate depression
-        elif depression_score >= 0.4:
-            recommendations.append({
-                'category': 'depression',
-                'priority': 'medium',
-                'title': 'Monitor Depression Symptoms',
-                'description': 'Moderate depressive symptoms detected. Consider preventive interventions.',
-                'actions': [
-                    'Practice daily self-care activities',
-                    'Maintain regular sleep schedule',
-                    'Consider therapy or counseling',
-                    'Stay connected with supportive people'
-                ],
-                'resources': []
-            })
+        # HIGH CONCERN LEVEL (50-70%)
+        elif depression_score >= 0.5:
+            recommendations.extend([
+                "👨‍⚕️ Schedule Professional Consultation - Book an appointment with a therapist or counselor within the next week",
+                "📝 Start a Mood Journal - Track your mood daily to identify patterns and triggers",
+                "🧘‍♂️ Practice Daily Mindfulness - Try 10-15 minutes of meditation or deep breathing exercises each morning",
+                "💪 Physical Activity - Engage in 30 minutes of moderate exercise 3-4 times per week (walking, yoga, swimming)",
+                "😴 Sleep Hygiene - Maintain a consistent sleep schedule (7-9 hours) and create a relaxing bedtime routine"
+            ])
 
-        # High anxiety recommendations
+        # MODERATE CONCERN (30-50%)
+        elif depression_score >= 0.3:
+            recommendations.extend([
+                "📊 Monitor Your Mental Health - Keep track of your mood and energy levels using a journal or app",
+                "🤝 Stay Socially Connected - Schedule regular catch-ups with friends or family, even if just a phone call",
+                "🎯 Set Small Daily Goals - Break tasks into manageable steps and celebrate small wins",
+                "🧘 Try Relaxation Techniques - Explore guided meditation, progressive muscle relaxation, or breathing exercises",
+                "🌱 Practice Self-Compassion - Be kind to yourself and acknowledge that it's okay to not be perfect"
+            ])
+
+        # MILD CONCERN (15-30%)
+        elif depression_score >= 0.15:
+            recommendations.extend([
+                "✅ Continue Positive Habits - Keep up with activities that bring you joy and fulfillment",
+                "📈 Build Resilience - Try new coping strategies like journaling, creative hobbies, or nature walks",
+                "🎨 Engage in Meaningful Activities - Dedicate time to hobbies, volunteering, or learning something new",
+                "💚 Maintain Work-Life Balance - Set boundaries between work and personal time",
+                "🌟 Practice Gratitude - Write down 3 things you're grateful for each day"
+            ])
+
+        # EXCELLENT MENTAL HEALTH (<5% - NO DEPRESSION!)
+        elif depression_score < 0.05:
+            recommendations.extend([
+                "🎉 Outstanding Mental Wellbeing! - You're showing no signs of depression. Your emotional health is excellent!",
+                "💪 Keep Up These Amazing Habits - Whatever you're doing is working wonderfully. Continue your current lifestyle",
+                "🌟 Be a Positive Role Model - Your excellent mental health can inspire and support others around you",
+                "🎯 Set New Personal Goals - With strong mental health, consider new challenges or growth opportunities",
+                "💚 Practice Gratitude - Acknowledge and appreciate this positive phase in your life"
+            ])
+
+        # VERY GOOD MENTAL HEALTH (5-15%)
+        elif depression_score < 0.15:
+            recommendations.extend([
+                "✅ Excellent Mental Health - Your wellbeing is in a very healthy range. Keep maintaining these positive habits",
+                "🔄 Continue Preventive Self-Care - Regular exercise, healthy eating, and quality sleep are supporting you well",
+                "🌈 Maintain Social Connections - Your support networks are clearly beneficial",
+                "📚 Keep Growing - Explore new interests or personal development opportunities",
+                "💫 Share Your Positivity - Consider mentoring or supporting others who might benefit from your experience"
+            ])
+
+        # ANXIETY-SPECIFIC RECOMMENDATIONS
         if anxiety_score >= 0.65:
-            recommendations.append({
-                'category': 'anxiety',
-                'priority': 'high',
-                'title': 'Anxiety Management Strategies',
-                'description': 'High anxiety levels detected. Active intervention recommended.',
-                'actions': [
-                    'Practice mindfulness and deep breathing exercises',
-                    'Consider cognitive behavioral therapy (CBT)',
-                    'Reduce caffeine and stimulants',
-                    'Establish grounding techniques for acute anxiety'
-                ],
-                'resources': [
-                    'Anxiety & Depression Association: adaa.org',
-                    'Headspace or Calm apps for guided meditation'
-                ]
-            })
-
-        # Moderate anxiety
+            recommendations.insert(0, "⚡ Anxiety Management - Practice 4-7-8 breathing: Inhale for 4 counts, hold for 7, exhale for 8. Repeat 3-4 times when anxious")
+            recommendations.append("☕ Reduce Stimulants - Limit caffeine, sugar, and alcohol which can worsen anxiety symptoms")
         elif anxiety_score >= 0.45:
-            recommendations.append({
-                'category': 'anxiety',
-                'priority': 'medium',
-                'title': 'Stress Reduction Techniques',
-                'description': 'Moderate anxiety symptoms. Proactive management beneficial.',
-                'actions': [
-                    'Daily relaxation exercises (5-10 minutes)',
-                    'Regular physical activity',
-                    'Journaling thoughts and worries',
-                    'Consider talking to a counselor'
-                ],
-                'resources': []
-            })
+            recommendations.append("🧠 Grounding Techniques - When anxious, use the 5-4-3-2-1 method: Name 5 things you see, 4 you hear, 3 you touch, 2 you smell, 1 you taste")
 
-        # Specific risk factor recommendations
+        # RISK FACTOR-SPECIFIC RECOMMENDATIONS
         if 'Poor eye contact (social withdrawal)' in risk_factors:
-            recommendations.append({
-                'category': 'social',
-                'priority': 'medium',
-                'title': 'Social Engagement Support',
-                'description': 'Low social engagement detected. Building connections important.',
-                'actions': [
-                    'Reach out to one friend or family member daily',
-                    'Join support groups (online or in-person)',
-                    'Consider social skills therapy if needed',
-                    'Start with small social interactions'
-                ],
-                'resources': []
-            })
+            recommendations.append("👋 Social Re-engagement - Start small: text a friend, make eye contact with one person, or join an online interest group")
 
-        # Positive recommendations if doing well
-        if depression_score < 0.3 and anxiety_score < 0.3:
-            recommendations.append({
-                'category': 'maintenance',
-                'priority': 'low',
-                'title': 'Maintain Positive Mental Health',
-                'description': 'Your assessment shows good mental health. Keep up the positive habits.',
-                'actions': [
-                    'Continue current wellness practices',
-                    'Regular check-ins with yourself',
-                    'Build resilience through mindfulness',
-                    'Stay connected with support network'
-                ],
-                'resources': []
-            })
+        if 'Persistent sadness' in risk_factors:
+            recommendations.append("🌅 Behavioral Activation - Schedule one pleasurable activity daily, even if you don't feel like it initially")
 
-        # Default recommendation if list is empty
-        if not recommendations:
-            recommendations.append({
-                'category': 'general',
-                'priority': 'medium',
-                'title': 'General Wellbeing Recommendations',
-                'description': 'Maintain balanced mental health through healthy habits.',
-                'actions': [
-                    'Regular exercise (30 minutes/day)',
-                    'Healthy sleep schedule (7-9 hours)',
-                    'Balanced nutrition',
-                    'Social connections'
-                ],
-                'resources': []
-            })
+        if 'Flat affect (reduced emotional expression)' in risk_factors:
+            recommendations.append("🎭 Emotional Expression - Try expressive activities like art, music, dance, or talking with a supportive friend")
 
-        return recommendations
+        # PROTECTIVE FACTOR REINFORCEMENT
+        if 'Presence of positive emotions' in protective_factors:
+            recommendations.append("✨ Amplify Joy - Notice and savor positive moments throughout your day")
+
+        if 'Good social engagement' in protective_factors:
+            recommendations.append("🤗 Nurture Relationships - Continue investing in the relationships that bring you support and joy")
+
+        # Return top 7 most relevant recommendations
+        return recommendations[:7]
 
     def _detect_crisis(self, mental_health: Dict) -> bool:
         """

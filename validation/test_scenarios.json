@@ -1,0 +1,726 @@
+{
+  "test_scenarios": [
+    {
+      "id": "happy_01",
+      "category": "very_happy",
+      "description": "Very happy person with excellent mental health",
+      "transcription": "I'm so happy today! Life is amazing! I feel wonderful and everything is going great!",
+      "emotions": {
+        "happy": 0.85,
+        "surprise": 0.10,
+        "neutral": 0.05,
+        "sad": 0.00,
+        "fear": 0.00,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.00,
+        "depression_level": "none",
+        "anxiety_score": 0.05,
+        "anxiety_level": "none",
+        "confidence_score": 0.90,
+        "confidence_level": "very_high",
+        "overall_wellbeing": "excellent"
+      }
+    },
+    {
+      "id": "happy_02",
+      "category": "happy",
+      "description": "Happy person with good mental health",
+      "transcription": "I'm feeling really good today. Had a nice morning and looking forward to the weekend.",
+      "emotions": {
+        "happy": 0.70,
+        "neutral": 0.20,
+        "surprise": 0.05,
+        "sad": 0.05,
+        "fear": 0.00,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.08,
+        "depression_level": "minimal",
+        "anxiety_score": 0.10,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.75,
+        "confidence_level": "high",
+        "overall_wellbeing": "good"
+      }
+    },
+    {
+      "id": "neutral_01",
+      "category": "neutral",
+      "description": "Calm, neutral person - baseline mental health",
+      "transcription": "I'm doing okay. Nothing special today, just a regular day at work.",
+      "emotions": {
+        "neutral": 0.60,
+        "happy": 0.25,
+        "sad": 0.10,
+        "surprise": 0.05,
+        "fear": 0.00,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.18,
+        "depression_level": "minimal",
+        "anxiety_score": 0.15,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.55,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "mild_depression_01",
+      "category": "mild_depression",
+      "description": "Person with mild depressive symptoms",
+      "transcription": "I've been feeling a bit down lately. Not terrible, but just not myself. Things feel harder than usual.",
+      "emotions": {
+        "sad": 0.40,
+        "neutral": 0.35,
+        "happy": 0.15,
+        "fear": 0.05,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.28,
+        "depression_level": "mild",
+        "anxiety_score": 0.30,
+        "anxiety_level": "mild",
+        "confidence_score": 0.40,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "moderate_depression_01",
+      "category": "moderate_depression",
+      "description": "Person with moderate depression",
+      "transcription": "I'm struggling. Everything feels heavy. I don't enjoy things like I used to. Sleep is hard.",
+      "emotions": {
+        "sad": 0.60,
+        "neutral": 0.20,
+        "fear": 0.10,
+        "angry": 0.05,
+        "disgust": 0.03,
+        "happy": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.48,
+        "depression_level": "moderate",
+        "anxiety_score": 0.50,
+        "anxiety_level": "moderate",
+        "confidence_score": 0.25,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "severe_depression_01",
+      "category": "severe_depression",
+      "description": "Person with severe depression",
+      "transcription": "Nothing matters anymore. I can't get out of bed. Everything is dark. I don't see the point.",
+      "emotions": {
+        "sad": 0.75,
+        "neutral": 0.15,
+        "fear": 0.05,
+        "disgust": 0.03,
+        "angry": 0.02,
+        "happy": 0.00,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.75,
+        "depression_level": "moderately_severe",
+        "anxiety_score": 0.55,
+        "anxiety_level": "moderate",
+        "confidence_score": 0.15,
+        "confidence_level": "low",
+        "overall_wellbeing": "serious"
+      }
+    },
+    {
+      "id": "crisis_01",
+      "category": "crisis",
+      "description": "Person in crisis with suicidal ideation",
+      "transcription": "I can't take this anymore. Nothing will ever get better. I don't want to be here.",
+      "emotions": {
+        "sad": 0.85,
+        "fear": 0.08,
+        "disgust": 0.04,
+        "angry": 0.02,
+        "neutral": 0.01,
+        "happy": 0.00,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.90,
+        "depression_level": "severe",
+        "anxiety_score": 0.70,
+        "anxiety_level": "severe",
+        "confidence_score": 0.10,
+        "confidence_level": "very_low",
+        "overall_wellbeing": "critical",
+        "crisis_detected": true
+      }
+    },
+    {
+      "id": "high_anxiety_01",
+      "category": "high_anxiety",
+      "description": "Person with high anxiety but low depression",
+      "transcription": "I'm so worried about everything. Can't stop thinking about what might go wrong. Feel on edge all the time.",
+      "emotions": {
+        "fear": 0.65,
+        "sad": 0.15,
+        "neutral": 0.10,
+        "angry": 0.05,
+        "surprise": 0.03,
+        "disgust": 0.02,
+        "happy": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.25,
+        "depression_level": "mild",
+        "anxiety_score": 0.72,
+        "anxiety_level": "severe",
+        "confidence_score": 0.20,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "mixed_emotions_01",
+      "category": "mixed",
+      "description": "Mixed emotions - ups and downs",
+      "transcription": "Some days are good, some are bad. Right now I'm okay but I know it changes fast.",
+      "emotions": {
+        "neutral": 0.40,
+        "happy": 0.25,
+        "sad": 0.20,
+        "fear": 0.10,
+        "surprise": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.35,
+        "depression_level": "mild",
+        "anxiety_score": 0.40,
+        "anxiety_level": "mild",
+        "confidence_score": 0.45,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "incongruent_01",
+      "category": "incongruent",
+      "description": "Happy words but sad emotions (masking)",
+      "transcription": "I'm fine! Everything's great! Never been better!",
+      "emotions": {
+        "sad": 0.50,
+        "neutral": 0.30,
+        "happy": 0.15,
+        "fear": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.42,
+        "depression_level": "moderate",
+        "anxiety_score": 0.35,
+        "anxiety_level": "mild",
+        "confidence_score": 0.30,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning",
+        "note": "Incongruence between words and emotions - likely masking"
+      }
+    },
+    {
+      "id": "calm_happy_01",
+      "category": "calm_happy",
+      "description": "Calm but genuinely happy person",
+      "transcription": "I'm feeling peaceful and content. Life is good in a quiet way.",
+      "emotions": {
+        "happy": 0.55,
+        "neutral": 0.40,
+        "sad": 0.03,
+        "surprise": 0.02,
+        "fear": 0.00,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.05,
+        "depression_level": "minimal",
+        "anxiety_score": 0.08,
+        "anxiety_level": "none",
+        "confidence_score": 0.65,
+        "confidence_level": "high",
+        "overall_wellbeing": "good"
+      }
+    },
+    {
+      "id": "energetic_anxious_01",
+      "category": "energetic_anxious",
+      "description": "Energetic but anxious - high arousal",
+      "transcription": "I have so much energy but I'm worried about everything! Can't slow down my mind.",
+      "emotions": {
+        "fear": 0.55,
+        "surprise": 0.20,
+        "happy": 0.15,
+        "neutral": 0.05,
+        "sad": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.12,
+        "depression_level": "minimal",
+        "anxiety_score": 0.68,
+        "anxiety_level": "moderately_severe",
+        "confidence_score": 0.30,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "mild_depression_02",
+      "category": "mild_depression",
+      "description": "Another mild depression case - more happiness present",
+      "transcription": "I still enjoy some things, but overall I'm not feeling great lately.",
+      "emotions": {
+        "sad": 0.35,
+        "happy": 0.30,
+        "neutral": 0.25,
+        "fear": 0.05,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.24,
+        "depression_level": "mild",
+        "anxiety_score": 0.22,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.45,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "moderate_depression_02",
+      "category": "moderate_depression",
+      "description": "Moderate depression with low happiness",
+      "transcription": "Most days feel gray. I don't have energy. Things that used to bring joy don't anymore.",
+      "emotions": {
+        "sad": 0.55,
+        "neutral": 0.25,
+        "happy": 0.10,
+        "fear": 0.05,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.52,
+        "depression_level": "moderate",
+        "anxiety_score": 0.45,
+        "anxiety_level": "mild",
+        "confidence_score": 0.22,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "minimal_anxiety_01",
+      "category": "minimal_anxiety",
+      "description": "Slight nervousness but mostly okay",
+      "transcription": "I'm a bit nervous about the upcoming presentation, but I'll be fine.",
+      "emotions": {
+        "neutral": 0.50,
+        "happy": 0.25,
+        "fear": 0.15,
+        "sad": 0.05,
+        "surprise": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.12,
+        "depression_level": "minimal",
+        "anxiety_score": 0.18,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.55,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "good"
+      }
+    },
+    {
+      "id": "moderate_anxiety_01",
+      "category": "moderate_anxiety",
+      "description": "Moderate anxiety without depression",
+      "transcription": "I'm constantly on edge. Every little thing makes me worry. Can't seem to relax.",
+      "emotions": {
+        "fear": 0.50,
+        "neutral": 0.25,
+        "sad": 0.10,
+        "surprise": 0.08,
+        "angry": 0.05,
+        "happy": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.20,
+        "depression_level": "minimal",
+        "anxiety_score": 0.58,
+        "anxiety_level": "moderate",
+        "confidence_score": 0.25,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "severe_anxiety_01",
+      "category": "severe_anxiety",
+      "description": "Severe anxiety - panic symptoms",
+      "transcription": "I can't breathe. Everything is terrifying. I feel like something terrible is about to happen.",
+      "emotions": {
+        "fear": 0.80,
+        "surprise": 0.10,
+        "sad": 0.05,
+        "angry": 0.03,
+        "neutral": 0.02,
+        "happy": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.35,
+        "depression_level": "mild",
+        "anxiety_score": 0.85,
+        "anxiety_level": "severe",
+        "confidence_score": 0.10,
+        "confidence_level": "very_low",
+        "overall_wellbeing": "serious"
+      }
+    },
+    {
+      "id": "angry_depressed_01",
+      "category": "angry_depressed",
+      "description": "Depression manifesting as irritability",
+      "transcription": "I'm so frustrated with everything! Nothing works out! Why bother trying?",
+      "emotions": {
+        "angry": 0.50,
+        "sad": 0.30,
+        "neutral": 0.10,
+        "disgust": 0.05,
+        "fear": 0.03,
+        "happy": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.45,
+        "depression_level": "moderate",
+        "anxiety_score": 0.38,
+        "anxiety_level": "mild",
+        "confidence_score": 0.20,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "apathetic_01",
+      "category": "apathetic",
+      "description": "Flat affect, emotionally numb",
+      "transcription": "I don't really feel anything. Just going through the motions. Nothing matters much.",
+      "emotions": {
+        "neutral": 0.70,
+        "sad": 0.15,
+        "happy": 0.08,
+        "fear": 0.03,
+        "angry": 0.02,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.38,
+        "depression_level": "mild",
+        "anxiety_score": 0.25,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.35,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "hopeful_recovering_01",
+      "category": "hopeful_recovering",
+      "description": "Recovering from depression, showing improvement",
+      "transcription": "I'm starting to feel better. Still have hard days but there's some light coming back.",
+      "emotions": {
+        "happy": 0.40,
+        "neutral": 0.30,
+        "sad": 0.20,
+        "fear": 0.05,
+        "surprise": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.22,
+        "depression_level": "mild",
+        "anxiety_score": 0.28,
+        "anxiety_level": "mild",
+        "confidence_score": 0.50,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "very_happy_02",
+      "category": "very_happy",
+      "description": "Extremely happy and energetic",
+      "transcription": "This is the best day ever! I love my life! Everything is absolutely perfect!",
+      "emotions": {
+        "happy": 0.90,
+        "surprise": 0.08,
+        "neutral": 0.02,
+        "sad": 0.00,
+        "fear": 0.00,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.00,
+        "depression_level": "none",
+        "anxiety_score": 0.03,
+        "anxiety_level": "none",
+        "confidence_score": 0.95,
+        "confidence_level": "very_high",
+        "overall_wellbeing": "excellent"
+      }
+    },
+    {
+      "id": "content_01",
+      "category": "content",
+      "description": "Content and satisfied with life",
+      "transcription": "I'm doing well. Work is good, family is healthy. I'm grateful for what I have.",
+      "emotions": {
+        "happy": 0.60,
+        "neutral": 0.30,
+        "sad": 0.05,
+        "surprise": 0.03,
+        "fear": 0.02,
+        "angry": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.03,
+        "depression_level": "none",
+        "anxiety_score": 0.10,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.75,
+        "confidence_level": "high",
+        "overall_wellbeing": "excellent"
+      }
+    },
+    {
+      "id": "stressed_not_depressed_01",
+      "category": "stressed",
+      "description": "Stressed but not clinically depressed",
+      "transcription": "Work is really intense right now. I'm tired and stressed but I know it's temporary.",
+      "emotions": {
+        "neutral": 0.40,
+        "sad": 0.25,
+        "fear": 0.20,
+        "happy": 0.10,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.32,
+        "depression_level": "mild",
+        "anxiety_score": 0.48,
+        "anxiety_level": "mild",
+        "confidence_score": 0.40,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "moderately_severe_depression_01",
+      "category": "moderately_severe_depression",
+      "description": "Between moderate and severe depression",
+      "transcription": "Everything feels hopeless. I can barely function. Sleep all day or can't sleep at all.",
+      "emotions": {
+        "sad": 0.70,
+        "neutral": 0.18,
+        "fear": 0.06,
+        "disgust": 0.03,
+        "angry": 0.02,
+        "happy": 0.01,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.68,
+        "depression_level": "moderately_severe",
+        "anxiety_score": 0.52,
+        "anxiety_level": "moderate",
+        "confidence_score": 0.18,
+        "confidence_level": "low",
+        "overall_wellbeing": "serious"
+      }
+    },
+    {
+      "id": "panic_attack_01",
+      "category": "panic",
+      "description": "Acute panic attack state",
+      "transcription": "My heart is racing! I think I'm dying! I need help right now!",
+      "emotions": {
+        "fear": 0.85,
+        "surprise": 0.10,
+        "sad": 0.03,
+        "angry": 0.02,
+        "neutral": 0.00,
+        "happy": 0.00,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.28,
+        "depression_level": "mild",
+        "anxiety_score": 0.90,
+        "anxiety_level": "severe",
+        "confidence_score": 0.05,
+        "confidence_level": "very_low",
+        "overall_wellbeing": "critical"
+      }
+    },
+    {
+      "id": "mixed_episode_01",
+      "category": "mixed",
+      "description": "Mixed depressive and anxiety symptoms",
+      "transcription": "I feel sad and empty but also restless and worried. Can't settle down.",
+      "emotions": {
+        "sad": 0.45,
+        "fear": 0.35,
+        "neutral": 0.10,
+        "angry": 0.05,
+        "surprise": 0.03,
+        "happy": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.50,
+        "depression_level": "moderate",
+        "anxiety_score": 0.62,
+        "anxiety_level": "moderately_severe",
+        "confidence_score": 0.20,
+        "confidence_level": "low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "seasonal_blues_01",
+      "category": "mild_depression",
+      "description": "Mild seasonal affective symptoms",
+      "transcription": "Winter makes me feel sluggish and a bit down. Not as bad as depression, just low energy.",
+      "emotions": {
+        "sad": 0.30,
+        "neutral": 0.40,
+        "happy": 0.20,
+        "fear": 0.05,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.26,
+        "depression_level": "mild",
+        "anxiety_score": 0.20,
+        "anxiety_level": "minimal",
+        "confidence_score": 0.48,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "social_anxiety_01",
+      "category": "social_anxiety",
+      "description": "Social anxiety specific case",
+      "transcription": "I'm so nervous around people. What if they judge me? I'd rather stay home.",
+      "emotions": {
+        "fear": 0.60,
+        "sad": 0.20,
+        "neutral": 0.12,
+        "surprise": 0.05,
+        "happy": 0.02,
+        "angry": 0.01,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.30,
+        "depression_level": "mild",
+        "anxiety_score": 0.70,
+        "anxiety_level": "moderately_severe",
+        "confidence_score": 0.15,
+        "confidence_level": "very_low",
+        "overall_wellbeing": "concerning"
+      }
+    },
+    {
+      "id": "exhausted_01",
+      "category": "exhausted",
+      "description": "Burnout and exhaustion",
+      "transcription": "I'm just so tired. Exhausted physically and mentally. Need a break.",
+      "emotions": {
+        "neutral": 0.50,
+        "sad": 0.30,
+        "happy": 0.10,
+        "fear": 0.05,
+        "angry": 0.03,
+        "disgust": 0.02,
+        "surprise": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.35,
+        "depression_level": "mild",
+        "anxiety_score": 0.32,
+        "anxiety_level": "mild",
+        "confidence_score": 0.35,
+        "confidence_level": "low",
+        "overall_wellbeing": "fair"
+      }
+    },
+    {
+      "id": "worried_parent_01",
+      "category": "situational_anxiety",
+      "description": "Situational anxiety - worried parent",
+      "transcription": "My child is sick and I'm worried. Hope they'll be okay. Just concerned.",
+      "emotions": {
+        "fear": 0.45,
+        "sad": 0.25,
+        "neutral": 0.20,
+        "happy": 0.05,
+        "surprise": 0.03,
+        "angry": 0.02,
+        "disgust": 0.00
+      },
+      "ground_truth": {
+        "depression_score": 0.28,
+        "depression_level": "mild",
+        "anxiety_score": 0.52,
+        "anxiety_level": "moderate",
+        "confidence_score": 0.40,
+        "confidence_level": "moderate",
+        "overall_wellbeing": "fair"
+      }
+    }
+  ]
+}

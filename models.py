@@ -6,10 +6,13 @@ from sqlalchemy.dialects.postgresql import JSON
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    phone_number = db.Column(db.String(20))
+    emergency_contact_phone = db.Column(db.String(20))  # Trusted friend/family for crisis support
+    emergency_contact_name = db.Column(db.String(100))  # Name of trusted friend/family
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
@@ -152,3 +155,33 @@ class ChatMessage(db.Model):
     sentiment = db.Column(db.String(20))
     confidence = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class CriticalUser(db.Model):
+    __tablename__ = 'critical_users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    username = db.Column(db.String(80), nullable=False)
+    phone_number = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+
+    # Assessment details
+    assessment_type = db.Column(db.String(50), nullable=False)  # 'phq9', 'scid5pd', 'audio_video', 'composite'
+    score = db.Column(db.Float, nullable=False)  # Normalized to 0-100 percentage
+    raw_score = db.Column(db.String(50))  # Original score format (e.g., "21/27", "16/20", "0.85")
+    severity = db.Column(db.String(50))  # 'severe', 'critical', etc.
+
+    # Alert management
+    alert_sent = db.Column(db.Boolean, default=False)
+    alert_sent_at = db.Column(db.DateTime)
+    admin_viewed = db.Column(db.Boolean, default=False)
+    admin_viewed_at = db.Column(db.DateTime)
+    admin_notes = db.Column(db.Text)
+    resolved = db.Column(db.Boolean, default=False)
+    resolved_at = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationship to user
+    user = db.relationship('User', backref='critical_alerts', lazy=True)

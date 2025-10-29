@@ -47,6 +47,42 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="phoneNumber" class="form-label">Phone Number</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-phone"></i>
+                                </span>
+                                <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="+1 (555) 123-4567" pattern="[+]?[0-9\s\-\(\)]+">
+                            </div>
+                            <div class="form-text">
+                                Optional. Used for emergency contact and appointment reminders.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="alert alert-info">
+                                <i class="fas fa-heart me-2"></i>
+                                <strong>Emergency Contact (Optional)</strong>
+                                <p class="mb-0 small mt-2">Add a trusted friend or family member who we can alert if you show signs of critical distress.</p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="emergencyContactName" class="form-label">
+                                    <i class="fas fa-user-friends me-1"></i>Contact Name
+                                </label>
+                                <input type="text" class="form-control" id="emergencyContactName" name="emergencyContactName" placeholder="e.g., John Doe">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="emergencyContactPhone" class="form-label">
+                                    <i class="fas fa-phone-alt me-1"></i>Contact Phone
+                                </label>
+                                <input type="tel" class="form-control" id="emergencyContactPhone" name="emergencyContactPhone" placeholder="+1 (555) 987-6543" pattern="[+]?[0-9\s\-\(\)]+">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">
@@ -148,6 +184,9 @@ $(document).ready(function() {
         const formData = {
             username: $('#username').val().trim(),
             email: $('#email').val().trim(),
+            phoneNumber: $('#phoneNumber').val().trim(),
+            emergencyContactName: $('#emergencyContactName').val().trim(),
+            emergencyContactPhone: $('#emergencyContactPhone').val().trim(),
             password: password,
             firstName: $('#firstName').val().trim(),
             lastName: $('#lastName').val().trim()
