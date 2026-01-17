@@ -530,5 +530,3 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Database error: {e}")
     app.run(debug=True)
-
-
