@@ -1,265 +1,133 @@
-# AI Powered Mental Health and Personalized Recommendation System 🧠
+# 🧠 MindTrack AI
 
-An intelligent mental health tracking and analysis platform that combines advanced AI with personalized recommendations to help users understand and improve their mental well-being.
+### A multimodal mental-health platform that reads text, voice, and video to understand emotional well-being — and responds with personalized, privacy-first insights.
 
-## ✨ Features
+[![Award](https://img.shields.io/badge/🥇%201st%20Prize-INTUITE%202026-FFD700?style=for-the-badge)](#-recognition)
+[![IBM](https://img.shields.io/badge/Presented-IBM%20Global%20CSR%20Summit%20South%20Asia%202025-052FAD?style=for-the-badge&logo=ibm&logoColor=white)](#-recognition)
+[![IEEE](https://img.shields.io/badge/IEEE%20Xplore-Paper%20Accepted-00629B?style=for-the-badge&logo=ieee&logoColor=white)](#-recognition)
 
-- **AI-Powered Journal Analysis**: Advanced BERT and spaCy models analyze journal entries for sentiment, emotions, and key themes
-- **Mood Tracking**: Monitor daily mood patterns and correlate them with activities, sleep, and social interactions
-- **Task Management**: Organize and track personal tasks with priority levels and due dates
-- **Goal Setting**: Set and track personal goals with AI-powered insights
-- **Real-time Insights**: Get instant feedback on your writing patterns and emotional trends
-- **Beautiful UI**: Modern, responsive design with intuitive user experience
-
-## 🛠️ Technology Stack
-
-### Backend
-- **Flask**: Lightweight web framework
-- **PostgreSQL**: Primary database for data persistence
-- **Redis**: Caching and session management
-- **Celery**: Background task processing for ML analysis
-- **SQLAlchemy**: Object-relational mapping
-
-### Machine Learning
-- **BERT**: Advanced sentiment analysis and emotion detection
-- **spaCy**: Natural language processing and entity recognition
-- **Scikit-learn**: Topic modeling and text analysis
-- **TextBlob**: Additional sentiment analysis
-- **NLTK**: Text processing utilities
-
-### Frontend
-- **Bootstrap 5**: Modern CSS framework
-- **Chart.js**: Interactive data visualization
-- **Font Awesome**: Icon library
-- **jQuery**: JavaScript library for DOM manipulation
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker and Docker Compose
-- Python 3.11+ (for local development)
-- PostgreSQL 15+
-- Redis 7+
-
-### Using Docker (Recommended)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/ai-mental-health.git
-   cd ai-mental-health
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp env_example.txt .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start the application**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Access the application**
-   - Web App: http://localhost:5000
-   - Nginx (if enabled): http://localhost:80
-
-### Local Development
-
-1. **Install Python dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Set up PostgreSQL database**
-   ```bash
-   createdb mindtrack_ai
-   ```
-
-3. **Set up Redis**
-   ```bash
-   redis-server
-   ```
-
-4. **Set environment variables**
-   ```bash
-   export FLASK_APP=app.py
-   export FLASK_ENV=development
-   export DATABASE_URL=postgresql://localhost/mindtrack_ai
-   export REDIS_URL=redis://localhost:6379/0
-   ```
-
-5. **Initialize the database**
-   ```bash
-   flask db init
-   flask db migrate
-   flask db upgrade
-   ```
-
-6. **Start the application**
-   ```bash
-   python app.py
-   ```
-
-7. **Start Celery worker (in another terminal)**
-   ```bash
-   celery -A ml_services.celery_app worker --loglevel=info
-   ```
-
-## 🏗️ Project Structure
-
-```
-ai-mental-health/
-├── app.py                 # Main Flask application
-├── models.py              # Database models
-├── routes.py              # Route definitions
-├── extensions.py          # Flask extensions
-├── ml_services.py         # ML model services
-├── templates/             # HTML templates
-├── static/                # CSS, JS, images
-├── requirements.txt       # Python dependencies
-├── docker-compose.yml     # Docker services
-└── README.md             # This file
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file based on `env_example.txt`:
-
-- `SECRET_KEY`: Flask secret key for sessions
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `CELERY_BROKER_URL`: Celery message broker URL
-- `SPACY_MODEL`: spaCy model to use (default: en_core_web_sm)
-
-### Database Setup
-
-The application uses PostgreSQL with the following models:
-- **Users**: User accounts and authentication
-- **Journal Entries**: Text entries with AI analysis
-- **Mood Entries**: Daily mood tracking
-- **Tasks**: Personal task management
-- **Goals**: Goal setting and progress tracking
-- **ML Models**: Machine learning model metadata
-
-## 🤖 Machine Learning Features
-
-### Sentiment Analysis
-- **BERT-based**: Advanced transformer model for sentiment classification
-- **TextBlob**: Additional sentiment analysis with polarity and subjectivity
-- **spaCy**: Named entity recognition and text processing
-
-### Emotion Detection
-- **Multi-label classification**: Detect multiple emotions in text
-- **Confidence scoring**: Provide confidence levels for predictions
-- **Real-time analysis**: Instant feedback on journal entries
-
-### Topic Modeling
-- **LDA (Latent Dirichlet Allocation)**: Extract key topics from text
-- **TF-IDF vectorization**: Identify important keywords
-- **Clustering**: Group similar entries by content
-
-## 📊 API Endpoints
-
-### Authentication
-- `POST /register` - User registration
-- `POST /login` - User authentication
-- `GET /logout` - User logout
-
-### Journal
-- `GET /journal/` - List journal entries
-- `POST /journal/new` - Create new entry
-- `GET /journal/<id>` - View specific entry
-
-### Mood Tracking
-- `GET /mood/` - List mood entries
-- `POST /mood/new` - Create mood entry
-
-### Tasks & Goals
-- `GET /tasks/` - List tasks
-- `POST /tasks/new` - Create task
-- `GET /goals/` - List goals
-- `POST /goals/new` - Create goal
-
-### ML Services
-- `GET /ml/insights` - View AI insights
-- `POST /ml/sentiment_analysis` - Analyze text sentiment
-
-## 🐳 Docker Services
-
-The application runs in multiple containers:
-
-- **postgres**: PostgreSQL database
-- **redis**: Redis cache and message broker
-- **web**: Flask web application
-- **celery_worker**: Background task processing
-- **celery_beat**: Scheduled task management
-- **nginx**: Reverse proxy (optional)
-
-## 📈 Monitoring & Logging
-
-- **Application logs**: Stored in `./logs/` directory
-- **Database logs**: PostgreSQL logs via Docker
-- **Celery logs**: Background task processing logs
-- **Health checks**: Container health monitoring
-
-## 🔒 Security Features
-
-- **Password hashing**: Secure password storage with bcrypt
-- **Session management**: Flask-Login for user sessions
-- **CSRF protection**: Built-in CSRF token validation
-- **Input validation**: Comprehensive form validation
-- **SQL injection protection**: SQLAlchemy ORM protection
-
-## 🚀 Deployment
-
-### Production Considerations
-
-1. **Environment variables**: Use secure, production-ready values
-2. **Database**: Use managed PostgreSQL service
-3. **Redis**: Use managed Redis service
-4. **SSL/TLS**: Enable HTTPS with proper certificates
-5. **Monitoring**: Implement application monitoring
-6. **Backup**: Regular database backups
-
-### Scaling
-
-- **Horizontal scaling**: Multiple web containers behind load balancer
-- **Database**: Read replicas for read-heavy operations
-- **Caching**: Redis cluster for high availability
-- **CDN**: Static asset delivery optimization
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Flask**: Web framework
-- **Hugging Face**: BERT models and transformers
-- **spaCy**: Natural language processing
-- **Bootstrap**: UI framework
-- **Chart.js**: Data visualization
-
-## 📞 Support & Contact
-
-- **Email**: imamfaisal36@gmail.com
-- **Documentation**: 
-- **Issues**: [GitHub Issues](https://github.com/faisalimam1/ai-mental-health/issues)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat&logo=pytorch&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/🤗%20Transformers-FFD21E?style=flat)
+![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white)
 
 ---
 
-**AI Powered Mental Health and Personalized Recommendation System** - Track Your Mind, Understand Your Soul 🧠✨
+## 🏆 Recognition
 
-Built with ❤️ for better mental health awareness and support.  
-© FAISAL IMAM & TEAM
+- 🥇 **1st Prize — INTUITE 2026**
+- 🎤 **Presented at the IBM Global CSR Summit, South Asia 2025**
+- 📄 **Research paper accepted for IEEE Xplore** (publication pending)
+
+> **Role:** Lead architect & sole owner, supported by two contributors.
+
+---
+
+## ✨ What It Does
+
+MindTrack AI fuses **three modalities** to build a richer picture of mental state than text alone:
+
+| Modality | Signals analyzed | Models / tools |
+|----------|------------------|----------------|
+| 📝 **Text** | Sentiment, emotion, themes from journal entries | BERT · VADER · spaCy · TextBlob |
+| 🎙️ **Voice** | Transcript + vocal tone / acoustic features | Whisper · Librosa |
+| 🎥 **Video** | Facial emotion & micro-expression cues | OpenCV · DeepFace · FER · MediaPipe |
+
+A **7-tier detection logic** combines these signals into a composite, confidence-aware well-being assessment — paired with mood tracking, task/goal management, and personalized recommendations.
+
+---
+
+## 🛠️ Tech Stack
+
+**ML / AI**
+- **Text:** BERT (transformer sentiment/emotion), VADER, spaCy (NER), TextBlob, scikit-learn (LDA topic modeling)
+- **Voice:** Whisper (speech-to-text), Librosa (audio feature extraction)
+- **Video:** OpenCV, DeepFace, FER, MediaPipe (facial-emotion analysis)
+
+**Backend & Infra**
+- Flask · SQLAlchemy · PostgreSQL · Redis · Celery (async ML jobs) · Docker / Docker Compose
+
+**Frontend**
+- Bootstrap 5 · Chart.js · Font Awesome
+
+---
+
+## 🚀 Quick Start (Docker)
+
+```bash
+git clone https://github.com/faisalimam1/MindTrackAI.git
+cd MindTrackAI
+cp env_example.txt .env        # fill in your configuration
+docker-compose up -d
+# Web app → http://localhost:5000
+```
+
+<details>
+<summary>Local development (without Docker)</summary>
+
+```bash
+pip install -r requirements.txt
+createdb mindtrack_ai
+redis-server
+
+export FLASK_APP=app.py
+export DATABASE_URL=postgresql://localhost/mindtrack_ai
+export REDIS_URL=redis://localhost:6379/0
+
+flask db init && flask db migrate && flask db upgrade
+python app.py
+# In a second terminal:
+celery -A ml_services.celery_app worker --loglevel=info
+```
+</details>
+
+---
+
+## 🏗️ Architecture
+
+```
+MindTrackAI/
+├── app.py            # Flask application entrypoint
+├── models.py         # SQLAlchemy models (users, journals, mood, tasks, goals)
+├── routes.py         # HTTP routes
+├── ml_services.py    # Text/voice/video ML pipelines (Celery tasks)
+├── extensions.py     # Flask extensions
+├── templates/        # Jinja templates
+├── static/           # CSS / JS / assets
+├── docker-compose.yml
+└── requirements.txt
+```
+
+**Containers:** `web` (Flask) · `postgres` · `redis` · `celery_worker` · `celery_beat` · optional `nginx`.
+
+---
+
+## 🔒 Privacy & Safety
+
+- Password hashing (bcrypt), Flask-Login sessions, CSRF protection, input validation, SQLAlchemy ORM (SQL-injection safe).
+- Built for **mental-health support and awareness** — not a diagnostic or clinical tool.
+
+---
+
+## 📊 Core Endpoints
+
+| Area | Endpoints |
+|------|-----------|
+| Auth | `POST /register` · `POST /login` · `GET /logout` |
+| Journal | `GET /journal/` · `POST /journal/new` · `GET /journal/<id>` |
+| Mood | `GET /mood/` · `POST /mood/new` |
+| Tasks / Goals | `GET /tasks/` · `POST /tasks/new` · `GET /goals/` · `POST /goals/new` |
+| ML | `GET /ml/insights` · `POST /ml/sentiment_analysis` |
+
+---
+
+## 📞 Contact
+
+**Faisal Imam** — [LinkedIn](https://www.linkedin.com/in/faisalimam19) · imamfaisal36@gmail.com · [Issues](https://github.com/faisalimam1/MindTrackAI/issues)
+
+---
+
+**MindTrack AI** — *Track your mind. Understand your soul.* 🧠✨
+© Faisal Imam & Team · MIT License
